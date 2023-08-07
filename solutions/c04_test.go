@@ -37,9 +37,9 @@ func readHexLines(t *testing.T, name string) [][]byte {
 
 func TestChallenge04(t *testing.T) {
 	in := readHexLines(t, "testdata/4.txt")
-	want := hexDecode(t, "abcdef")
+	want := hexDecode(t, "7b5a4215415d544115415d5015455447414c155c46155f4058455c5b523f")
 
-	got := xor.FindSingleByteXOR(in)
+	got := xor.FindSingleByteCiphertext(in)
 	if !bytes.Equal(want, got) {
 		t.Errorf("want %x, got %x", want, got)
 	}
