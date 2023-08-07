@@ -2,29 +2,38 @@
 package cryptopals
 
 import (
-	"bytes"
 	_ "embed"
 	"math"
 )
 
-// XOR returns a new byte slice with each element set to x[i] ^ y[i].
-// If len(x) != len(y), XOR panics.
+// XOR returns x ^ y.
+// If len(x) != len(y), it panics.
 func XOR(x, y []byte) []byte {
 	if len(x) != len(y) {
 		panic("different lengths")
 	}
-	res := bytes.Clone(x)
+	res := make([]byte, len(x))
 	for i := range res {
-		res[i] ^= y[i]
+		res[i] = x[i] ^ y[i]
 	}
 	return res
 }
 
-// XORByte returns a new byte slice with each element set to x[i] ^ y.
+// XORByte returns the result of xor'ing each byte of x with y.
 func XORByte(x []byte, y byte) []byte {
-	res := bytes.Clone(x)
+	res := make([]byte, len(x))
 	for i := range res {
-		res[i] ^= y
+		res[i] = x[i] ^ y
+	}
+	return res
+}
+
+// XORRepeat returns x ^ y, repeating y if it's too short.
+// The result has length len(x).
+func XORRepeat(x, y []byte) []byte {
+	res := make([]byte, len(x))
+	for i := range res {
+		res[i] = x[i] ^ y[i%len(y)]
 	}
 	return res
 }
