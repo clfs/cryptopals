@@ -29,7 +29,6 @@ func RecoverSingleBytePlaintext(ct []byte) []byte {
 }
 
 // FindSingleByteCiphertext finds the ciphertext most likely to be single-byte xor'd.
-// It panics if ct is empty.
 func FindSingleByteCiphertext(cts [][]byte) []byte {
 	var (
 		bestCt []byte
