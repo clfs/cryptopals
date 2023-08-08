@@ -12,7 +12,7 @@ import (
 )
 
 func readBase64(t *testing.T, name string) []byte {
-	f, err := os.Open("testdata/6.txt")
+	f, err := os.Open(name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,5 +34,5 @@ func TestChallenge06(t *testing.T) {
 		t.Errorf("want %x, got %x", want, got)
 	}
 
-	t.Logf("%s\n", cryptopals.XORRepeat(in, got))
+	t.Logf("%s", cryptopals.XORRepeat(in, got))
 }
