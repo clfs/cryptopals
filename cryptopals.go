@@ -85,9 +85,10 @@ func HammingDistance(a, b []byte) int {
 // Blocks returns consecutive subslices of b of length n, except for the final
 // block which may be shorter than n.
 func Blocks(b []byte, n int) [][]byte {
-	return nil
-}
-
-func Transpose(s [][]byte) [][]byte {
-	return nil
+	var res [][]byte
+	for len(b) > 0 {
+		res = append(res, b[:n])
+		b = b[n:]
+	}
+	return res
 }

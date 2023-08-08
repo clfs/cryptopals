@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 
 	"github.com/clfs/cryptopals/alias"
+	"golang.org/x/exp/slices"
 )
 
 type encrypter struct {
@@ -79,4 +80,28 @@ func NewEncrypter(b cipher.Block) cipher.BlockMode {
 // mode, using the given cipher.Block.
 func NewDecrypter(b cipher.Block) cipher.BlockMode {
 	return decrypter{b}
+}
+
+// FindCiphertext finds the first ciphertext likely to be ECB-encrypted.
+// If none of the ciphertexts are candidates, it returns nil.
+func FindCiphertext(cts [][]byte) []byte {
+	i := slices.IndexFunc(cts, isECB)
+	if i == -1 {
+		return nil
+	}
+	return cts[i]
+}
+
+// isECB returns true if a 16-byte block shows up more than once.
+func isECB(ct []byte) bool {
+	seen := make(map[[16]byte]struct{})
+	for i := 0; i < len(ct); i += 16 {
+		var block [16]byte
+		copy(block[:], ct[i:i+16])
+		if _, ok := seen[block]; ok {
+			return true
+		}
+		seen[block] = struct{}{}
+	}
+	return false
 }
