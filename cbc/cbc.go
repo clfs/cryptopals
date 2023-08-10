@@ -32,17 +32,13 @@ func (d *decrypter) CryptBlocks(dst, src []byte) {
 		return
 	}
 
-	iv := d.iv
-
 	for len(src) > 0 {
 		d.b.Decrypt(dst, src)
-		subtle.XORBytes(dst, dst, iv)
-		iv = src[:bs]
+		subtle.XORBytes(dst, dst, d.iv)
+		d.iv = src[:bs]
 		src = src[bs:]
 		dst = dst[bs:]
 	}
-
-	d.iv = iv
 }
 
 func NewDecrypter(b cipher.Block, iv []byte) cipher.BlockMode {
