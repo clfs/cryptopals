@@ -35,7 +35,10 @@ type singleByteXORCipher struct {
 	key byte
 }
 
-var _ cipher.Stream = singleByteXORCipher{}
+// newSingleByteXORCipher returns a new single-byte XOR cipher.
+func newSingleByteXORCipher(key byte) cipher.Stream {
+	return singleByteXORCipher{key: key}
+}
 
 func (s singleByteXORCipher) XORKeyStream(dst, src []byte) {
 	if len(dst) < len(src) {
