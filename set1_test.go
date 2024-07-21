@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"io"
 	"os"
+	"slices"
 	"testing"
 )
 
@@ -177,4 +178,16 @@ func TestChallenge7(t *testing.T) {
 	}
 
 	t.Logf("plaintext: %q", in)
+}
+
+func TestChallenge8(t *testing.T) {
+	in := decodeHexStringsFromFile(t, "testdata/8.txt")
+	want := 132 // block 2, 4, 8, and 10 are all "08649af70dc06f4fd5d2d69c744cd283"
+
+	got := slices.IndexFunc(in, is128ECBCiphertext)
+	if want != got {
+		t.Errorf("wrong index: want %d, got %d", want, got)
+	}
+
+	t.Logf("picked ciphertext: %x", in[got])
 }

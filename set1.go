@@ -258,3 +258,18 @@ func (e ecbDecrypter) CryptBlocks(dst, src []byte) {
 func newECBDecrypter(b cipher.Block) cipher.BlockMode {
 	return ecbDecrypter{b}
 }
+
+// is128ECBCiphertext returns true if b is likely to be 128-bit ECB encrypted.
+func is128ECBCiphertext(b []byte) bool {
+	// TODO: Use slices.Chunks once it's available in the standard library.
+	seen := make(map[[16]byte]struct{})
+	for i := 0; i < len(b); i += 16 {
+		var block [16]byte
+		copy(block[:], b[i:i+16])
+		if _, ok := seen[block]; ok {
+			return true
+		}
+		seen[block] = struct{}{}
+	}
+	return false
+}
