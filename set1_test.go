@@ -3,7 +3,9 @@ package cryptopals
 import (
 	"bufio"
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
+	"io"
 	"os"
 	"testing"
 )
@@ -108,4 +110,48 @@ I go crazy when I hear a cymbal`)
 	if !bytes.Equal(want, pt) {
 		t.Errorf("want %q, got %q", pt, pt)
 	}
+}
+
+// decodeBase64FromFile decodes Base64-encoded data from a file for testing.
+func decodeBase64FromFile(t *testing.T, name string) []byte {
+	t.Helper()
+
+	f, err := os.Open(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	dec := base64.NewDecoder(base64.StdEncoding, f)
+
+	res, err := io.ReadAll(dec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res
+}
+
+func TestHamming(t *testing.T) {
+	a := []byte("this is a test")
+	b := []byte("wokka wokka!!!")
+	want := 37
+
+	got := hamming(a, b)
+	if want != got {
+		t.Errorf("want %d, got %d", want, got)
+	}
+}
+
+func TestChallenge6(t *testing.T) {
+	in := decodeBase64FromFile(t, "testdata/6.txt")
+	want := []byte("Terminator X: Bring the noise")
+
+	got := recoverRepeatingKeyXORKey(in)
+
+	if !bytes.Equal(want, got) {
+		t.Errorf("want %q, got %q", want, got)
+	}
+
+	newRepeatingKeyXORCipher(got).XORKeyStream(in, in)
+	t.Logf("plaintext: %q", in)
 }

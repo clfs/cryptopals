@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"math"
+	"math/bits"
 )
 
 // hexToBase64 converts a hex-encoded string to a Base64-encoded string.
@@ -158,4 +159,68 @@ func (r *repeatingKeyXORCipher) XORKeyStream(dst, src []byte) {
 		dst[i] = src[i] ^ r.key[r.i]
 		r.i = (r.i + 1) % len(r.key)
 	}
+}
+
+// hamming returns the Hamming distance between a and b.
+//
+// It panics if a and b have different lengths.
+func hamming(a, b []byte) int {
+	if len(a) != len(b) {
+		panic("different lengths")
+	}
+
+	var res int
+	for i := range a {
+		res += bits.OnesCount8(a[i] ^ b[i])
+	}
+	return res
+}
+
+// recoverRepeatingKeyXORKeySize returns the most likely key size for a
+// repeating-key XOR ciphertext, within a to b inclusive.
+//
+// It assumes that the plaintext is English.
+//
+// TODO: Avoid panicking when a or b is large compared to len(ct).
+func recoverRepeatingKeyXORKeySize(ct []byte, a, b int) int {
+	var (
+		bestKeySize int
+		bestScore   = math.MaxFloat64 // lower is better
+	)
+
+	for ks := a; ks <= b; ks++ {
+		x, y := ct[:ks*4], ct[ks*4:ks*8]
+		h := hamming(x, y)
+
+		score := float64(h) / float64(ks)
+
+		if score < bestScore {
+			bestScore = score
+			bestKeySize = ks
+		}
+	}
+
+	return bestKeySize
+}
+
+// recoverRepeatingKeyXORKey returns the most likely key for a repeating-key
+// XOR ciphertext.
+//
+// It assumes the plaintext is English.
+//
+// It also assumes that the key size is between 2 and 40 bytes.
+func recoverRepeatingKeyXORKey(ct []byte) []byte {
+	var key []byte
+
+	ks := recoverRepeatingKeyXORKeySize(ct, 2, 40)
+
+	for i := range ks {
+		var column []byte
+		for j := i; j < len(ct); j += ks {
+			column = append(column, ct[j])
+		}
+		key = append(key, recoverSingleByteXORKey(column))
+	}
+
+	return key
 }
