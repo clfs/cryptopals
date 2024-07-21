@@ -91,23 +91,6 @@ func newCBCDecrypter(b cipher.Block, iv []byte) cipher.BlockMode {
 	return &cbcDecrypter{b, iv}
 }
 
-// randBool returns a random boolean.
-func randBool() bool {
-	var (
-		big0 = big.NewInt(0)
-		big2 = big.NewInt(2)
-	)
-
-	// Pick a uniform random integer in [0, 2).
-	n, err := rand.Int(rand.Reader, big2)
-	if err != nil {
-		panic(err)
-	}
-
-	// Is it 0?
-	return n.Cmp(big0) == 0
-}
-
 // challenge11Encrypt returns an encryption of the given input, following
 // specific steps provided in challenge 11.
 //
