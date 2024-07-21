@@ -3,6 +3,7 @@ package cryptopals
 import (
 	"bufio"
 	"bytes"
+	"crypto/aes"
 	"encoding/base64"
 	"encoding/hex"
 	"io"
@@ -153,5 +154,27 @@ func TestChallenge6(t *testing.T) {
 	}
 
 	newRepeatingKeyXORCipher(got).XORKeyStream(in, in)
+	t.Logf("plaintext: %q", in)
+}
+
+func TestChallenge7(t *testing.T) {
+	in := decodeBase64FromFile(t, "testdata/7.txt")
+	key := []byte("YELLOW SUBMARINE")
+	want := []byte("I'm back and I'm ringin' the bell \nA rockin'") // first few bytes
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mode := newECBDecrypter(block)
+
+	mode.CryptBlocks(in, in)
+
+	got := in[:len(want)]
+	if !bytes.Equal(want, got) {
+		t.Errorf("first %d bytes: want %q, got %q", len(want), want, got)
+	}
+
 	t.Logf("plaintext: %q", in)
 }
