@@ -13,3 +13,17 @@ func hexToBase64(s string) (string, error) {
 	}
 	return base64.StdEncoding.EncodeToString(data), nil
 }
+
+// xor returns a xor b.
+//
+// It panics if the lengths of a and b differ.
+func xor(a, b []byte) []byte {
+	if len(a) != len(b) {
+		panic("different lengths")
+	}
+	res := make([]byte, len(a))
+	for i := range a {
+		res[i] = a[i] ^ b[i]
+	}
+	return res
+}
