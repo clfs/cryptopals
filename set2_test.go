@@ -39,3 +39,25 @@ func TestChallenge10(t *testing.T) {
 
 	t.Logf("plaintext: %q", in)
 }
+
+func TestChallenge11(t *testing.T) {
+	var (
+		nECB int
+		nCBC int
+	)
+
+	for range 100 {
+		if challenge11Oracle(challenge11Encrypt) {
+			nECB++
+		} else {
+			nCBC++
+		}
+	}
+
+	// Within 4 standard deviations.
+	if nECB < 30 || nECB > 70 {
+		t.Errorf("bias: nECB=%d, nCBC=%d", nECB, nCBC)
+	}
+
+	t.Logf("nECB=%d, nCBC=%d", nECB, nCBC)
+}

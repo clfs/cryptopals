@@ -2,9 +2,12 @@ package cryptopals
 
 import (
 	"bytes"
+	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
 	"crypto/subtle"
 	"math"
+	"math/big"
 )
 
 // pkcs7pad appends PKCS#7 padding to b to guarantee block size n. It returns
@@ -86,4 +89,116 @@ func newCBCDecrypter(b cipher.Block, iv []byte) cipher.BlockMode {
 		panic("invalid iv length")
 	}
 	return &cbcDecrypter{b, iv}
+}
+
+// randBool returns a random boolean.
+func randBool() bool {
+	var (
+		big0 = big.NewInt(0)
+		big2 = big.NewInt(2)
+	)
+
+	// Pick a uniform random integer in [0, 2).
+	n, err := rand.Int(rand.Reader, big2)
+	if err != nil {
+		panic(err)
+	}
+
+	// Is it 0?
+	return n.Cmp(big0) == 0
+}
+
+// challenge11Encrypt returns an encryption of the given input, following
+// specific steps provided in challenge 11.
+//
+// It randomly generates these parameters:
+//
+//   - A 16-byte key.
+//   - A 16-byte IV.
+//   - A prefix of 5 to 10 bytes.
+//   - A suffix of 5 to 10 bytes.
+//   - A boolean indicating whether to encrypt with AES-128-ECB or AES-128-CBC.
+//
+// It then returns encrypt(pad(prefix || input || suffix)).
+//
+// If ECB mode is chosen, the IV is discarded.
+//
+// TODO: Reduce the number of rand.Read calls.
+func challenge11Encrypt(input []byte) []byte {
+	var (
+		big5 = big.NewInt(5)
+		big6 = big.NewInt(6)
+	)
+
+	prefixLen, err := rand.Int(rand.Reader, big6) // [0, 6)
+	if err != nil {
+		panic(err)
+	}
+
+	suffixLen, err := rand.Int(rand.Reader, big6) // [0, 6)
+	if err != nil {
+		panic(err)
+	}
+
+	prefixLen.Add(prefixLen, big5) // [5, 11)
+	suffixLen.Add(suffixLen, big5) // [5, 11)
+
+	var (
+		key    = make([]byte, 16)
+		iv     = make([]byte, 16)
+		prefix = make([]byte, prefixLen.Int64())
+		suffix = make([]byte, suffixLen.Int64())
+		useECB = make([]byte, 1)
+	)
+
+	if _, err := rand.Read(key); err != nil {
+		panic(err)
+	}
+	if _, err := rand.Read(iv); err != nil {
+		panic(err)
+	}
+	if _, err := rand.Read(prefix); err != nil {
+		panic(err)
+	}
+	if _, err := rand.Read(suffix); err != nil {
+		panic(err)
+	}
+	if _, err := rand.Read(useECB); err != nil {
+		panic(err)
+	}
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+
+	var mode cipher.BlockMode
+
+	// Choose either ECB or CBC with 1:1 odds.
+	if useECB[0]%2 == 0 {
+		mode = newECBEncrypter(block)
+	} else {
+		mode = cipher.NewCBCEncrypter(block, iv)
+	}
+
+	var res []byte
+
+	res = append(res, prefix...)
+	res = append(res, input...)
+	res = append(res, suffix...)
+
+	res = pkcs7pad(res, mode.BlockSize())
+
+	mode.CryptBlocks(res, res)
+
+	return res
+}
+
+// challenge11Oracle takes a encryption function and calls it once.
+// challenge11Oracle returns true if the encrypter used 128-bit ECB mode.
+func challenge11Oracle(enc func([]byte) []byte) (isECB bool) {
+	// Large enough to guarantee that 128-bit ECB mode outputs a repeated block.
+	input := make([]byte, aes.BlockSize*3)
+	ct := enc(input)
+	return is128ECBCiphertext(ct)
 }

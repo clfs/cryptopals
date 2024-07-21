@@ -225,12 +225,40 @@ func recoverRepeatingKeyXORKey(ct []byte) []byte {
 	return key
 }
 
+type ecbEncrypter struct {
+	b cipher.Block
+}
+
 type ecbDecrypter struct {
 	b cipher.Block
 }
 
+func (e ecbEncrypter) BlockSize() int {
+	return e.b.BlockSize()
+}
+
 func (e ecbDecrypter) BlockSize() int {
 	return e.b.BlockSize()
+}
+
+func (e ecbEncrypter) CryptBlocks(dst, src []byte) {
+	bs := e.b.BlockSize()
+
+	if len(src)%bs != 0 {
+		panic("input not full blocks")
+	}
+	if len(dst) < len(src) {
+		panic("dst too small")
+	}
+	if len(src) == 0 {
+		return
+	}
+
+	for len(src) > 0 {
+		e.b.Encrypt(dst, src)
+		src = src[bs:]
+		dst = dst[bs:]
+	}
 }
 
 func (e ecbDecrypter) CryptBlocks(dst, src []byte) {
@@ -251,6 +279,12 @@ func (e ecbDecrypter) CryptBlocks(dst, src []byte) {
 		src = src[bs:]
 		dst = dst[bs:]
 	}
+}
+
+// newECBEncrypter returns a cipher.BlockMode which encrypts in electronic
+// codebook mode.
+func newECBEncrypter(b cipher.Block) cipher.BlockMode {
+	return ecbEncrypter{b}
 }
 
 // newECBDecrypter returns a cipher.BlockMode which decrypts in electronic
