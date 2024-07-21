@@ -1,8 +1,10 @@
 package cryptopals
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/hex"
+	"os"
 	"testing"
 )
 
@@ -52,5 +54,45 @@ func TestChallenge3(t *testing.T) {
 	}
 
 	singleByteXORCipher{key: got}.XORKeyStream(ct, ct)
-	t.Logf("result: %q", ct)
+	t.Logf("plaintext: %q", ct)
+}
+
+// decodeHexStringsFromFile decodes newline-delimited, hex-encoded strings from
+// a file.
+func decodeHexStringsFromFile(t *testing.T, name string) [][]byte {
+	t.Helper()
+	f, err := os.Open(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	var res [][]byte
+
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		data := decodeHex(t, s.Text())
+		res = append(res, data)
+	}
+
+	if err := s.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	return res
+}
+
+func TestChallenge4(t *testing.T) {
+	in := decodeHexStringsFromFile(t, "testdata/4.txt")
+	want := decodeHex(t, "7b5a4215415d544115415d5015455447414c155c46155f4058455c5b523f")
+
+	got := findSingleByteXORCiphertext(in)
+
+	if !bytes.Equal(want, got) {
+		t.Errorf("want %x, got %x", want, got)
+	}
+
+	key := recoverSingleByteXORKey(got)
+	singleByteXORCipher{key: key}.XORKeyStream(got, got)
+	t.Logf("plaintext: %q", got)
 }
