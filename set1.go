@@ -105,25 +105,25 @@ func recoverSingleByteXORKey(ct []byte) byte {
 	return bestKey
 }
 
-// findSingleByteXORCiphertext returns the ciphertext most likely to be
-// single-byte XOR encrypted.
+// findSingleByteXORCiphertext returns the index of the ciphertext most likely
+// to be single-byte XOR encrypted.
 //
-// TODO: This should take an iter.Seq instead.
-func findSingleByteXORCiphertext(cts [][]byte) []byte {
+// If cts is empty, it returns -1.
+func findSingleByteXORCiphertext(cts [][]byte) int {
 	if len(cts) == 0 {
-		panic("no ciphertexts")
+		return -1
 	}
 
 	var (
-		bestCt    []byte
+		bestIndex int
 		bestScore float64 // higher is better
 	)
 
-	for _, ct := range cts {
+	for i, ct := range cts {
 		pt := make([]byte, len(ct))
 
-		for i := range math.MaxUint8 {
-			key := byte(i)
+		for j := range math.MaxUint8 {
+			key := byte(j)
 			cipher := singleByteXORCipher{key: key}
 
 			cipher.XORKeyStream(pt, ct)
@@ -132,12 +132,12 @@ func findSingleByteXORCiphertext(cts [][]byte) []byte {
 
 			if score > bestScore {
 				bestScore = score
-				bestCt = ct
+				bestIndex = i
 			}
 		}
 	}
 
-	return bestCt
+	return bestIndex
 }
 
 // repeatingKeyXORCipher represents a repeating-key XOR cipher.

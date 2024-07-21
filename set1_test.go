@@ -88,17 +88,18 @@ func decodeHexStringsFromFile(t *testing.T, name string) [][]byte {
 
 func TestChallenge4(t *testing.T) {
 	in := decodeHexStringsFromFile(t, "testdata/4.txt")
-	want := decodeHex(t, "7b5a4215415d544115415d5015455447414c155c46155f4058455c5b523f")
+	want := 170
 
 	got := findSingleByteXORCiphertext(in)
 
-	if !bytes.Equal(want, got) {
-		t.Errorf("want %x, got %x", want, got)
+	if want != got {
+		t.Errorf("wrong index: want %d, got %d", want, got)
 	}
 
-	key := recoverSingleByteXORKey(got)
-	newSingleByteXORCipher(key).XORKeyStream(got, got)
-	t.Logf("plaintext: %q", got)
+	ct := in[got]
+	key := recoverSingleByteXORKey(ct)
+	newSingleByteXORCipher(key).XORKeyStream(ct, ct)
+	t.Logf("plaintext: %q", ct)
 }
 
 func TestChallenge5(t *testing.T) {
