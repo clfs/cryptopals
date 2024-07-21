@@ -79,6 +79,8 @@ func (c *cbcDecrypter) CryptBlocks(dst, src []byte) {
 	c.iv = tmp
 }
 
+// newCBCDecrypter returns a cipher.BlockMode which decrypts in cipher block
+// chaining mode.
 func newCBCDecrypter(b cipher.Block, iv []byte) cipher.BlockMode {
 	if len(iv) != b.BlockSize() {
 		panic("invalid iv length")
