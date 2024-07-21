@@ -135,3 +135,24 @@ func findSingleByteXORCiphertext(cts [][]byte) []byte {
 
 	return bestCt
 }
+
+// repeatingKeyXORCipher represents a repeating-key XOR cipher.
+type repeatingKeyXORCipher struct {
+	key []byte
+	i   int
+}
+
+// newRepeatingKeyXORCipher returns a new repeating-key XOR cipher.
+func newRepeatingKeyXORCipher(key []byte) cipher.Stream {
+	return &repeatingKeyXORCipher{key: key}
+}
+
+func (r *repeatingKeyXORCipher) XORKeyStream(dst, src []byte) {
+	if len(dst) < len(src) {
+		panic("dst too small")
+	}
+	for i := range src {
+		dst[i] = src[i] ^ r.key[r.i]
+		r.i = (r.i + 1) % len(r.key)
+	}
+}
