@@ -3,6 +3,7 @@ package cryptopals
 import (
 	"bytes"
 	"crypto/aes"
+	"encoding/base64"
 	"testing"
 )
 
@@ -60,4 +61,28 @@ func TestChallenge11(t *testing.T) {
 	}
 
 	t.Logf("nECB=%d, nCBC=%d", nECB, nCBC)
+}
+
+// decodeBase64 is a wrapper around base64.StdEncoding.DecodeString for testing.
+func decodeBase64(t *testing.T, s string) []byte {
+	t.Helper()
+	data, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+func TestChallenge12(t *testing.T) {
+	secret := decodeBase64(t, "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK")
+	enc := newChallenge12EncryptFunc(secret)
+
+	got := recoverChallenge12Suffix(enc)
+
+	if !bytes.Equal(secret, got) {
+		// Avoid revealing the answer if the test fails.
+		t.Error("got wrong value for secret")
+	}
+
+	t.Logf("got: %q", got)
 }

@@ -8,10 +8,13 @@ import (
 	"crypto/subtle"
 	"math"
 	"math/big"
+	"slices"
 )
 
 // pkcs7pad appends PKCS#7 padding to b to guarantee block size n. It returns
 // the updated slice.
+//
+// TODO: Stop modifying the input slice.
 func pkcs7pad(b []byte, n int) []byte {
 	if n < 0 || n > math.MaxUint8 {
 		panic("invalid block size")
@@ -22,6 +25,12 @@ func pkcs7pad(b []byte, n int) []byte {
 	padding := bytes.Repeat([]byte{p}, int(p))
 
 	return append(b, padding...)
+}
+
+// pkcs7unpad returns a new slice with PKCS#7 padding removed.
+func pkcs7unpad(b []byte) []byte {
+	n := int(b[len(b)-1])
+	return bytes.Clone(b[:len(b)-n])
 }
 
 type cbcDecrypter struct {
@@ -107,6 +116,10 @@ func newCBCDecrypter(b cipher.Block, iv []byte) cipher.BlockMode {
 // If ECB mode is chosen, the IV is discarded.
 //
 // TODO: Reduce the number of rand.Read calls.
+//
+// TODO: Refactor this to return a function.
+//
+// TODO: Pick a more appropriate name for the function.
 func challenge11Encrypt(input []byte) []byte {
 	var (
 		big5 = big.NewInt(5)
@@ -178,10 +191,127 @@ func challenge11Encrypt(input []byte) []byte {
 }
 
 // challenge11Oracle takes a encryption function and calls it once.
-// challenge11Oracle returns true if the encrypter used 128-bit ECB mode.
+// challenge11Oracle returns true if the encryption function used 128-bit ECB
+// mode.
 func challenge11Oracle(enc func([]byte) []byte) (isECB bool) {
 	// Large enough to guarantee that 128-bit ECB mode outputs a repeated block.
 	input := make([]byte, aes.BlockSize*3)
 	ct := enc(input)
 	return is128ECBCiphertext(ct)
+}
+
+// newChallenge12EncryptFunc returns a function that encrypts inputs under the
+// scheme described in challenge 12.
+//
+// The function follows these steps:
+//  1. It appends a secret suffix to the input.
+//  2. It encrypts the result under ECB mode with a consistent key.
+//
+// TODO: Pick a more appropriate name for the function.
+func newChallenge12EncryptFunc(suffix []byte) func([]byte) []byte {
+	key := make([]byte, 16)
+
+	if _, err := rand.Read(key); err != nil {
+		panic(err)
+	}
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+
+	mode := newECBEncrypter(block)
+
+	return func(input []byte) []byte {
+		// input || suffix
+		b := slices.Concat(input, suffix)
+
+		// pad(input || suffix)
+		b = pkcs7pad(b, aes.BlockSize)
+
+		// encrypt(k, pad(input || suffix))
+		mode.CryptBlocks(b, b)
+
+		return b
+	}
+}
+
+// gcd returns the greatest common divisor of two non-negative integers.
+func gcd(x, y int) int {
+	if x < 0 || y < 0 {
+		panic("negative")
+	}
+	for y != 0 {
+		x, y = y, x%y
+	}
+	return x
+}
+
+// recoverChallenge12Suffix takes a challenge-12 encryption function and
+// recovers the secret suffix used.
+func recoverChallenge12Suffix(enc func([]byte) []byte) []byte {
+	// Recover the block size by taking the greatest common divisor of 100
+	// ciphertext lengths.
+	var (
+		input []byte
+		bs    int
+	)
+
+	for range 100 {
+		input = append(input, 0)
+		ct := enc(input)
+		bs = gcd(bs, len(ct))
+	}
+
+	// Confirm that the encryption function is using ECB.
+	if !is128ECBCiphertext(enc(input)) {
+		panic("not ecb")
+	}
+
+	var res []byte
+
+outer:
+	for {
+		// Choose an prefix length such that our 'guess' byte b will be the last
+		// byte of a plaintext block.
+		prefix := make([]byte, bs-(len(res)%bs)-1)
+
+		// Create a reference output to compare guesses against.
+		//
+		// encrypt(prefix || secret || pad)
+		want := enc(prefix)
+
+		for i := range math.MaxUint8 {
+			b := byte(i)
+
+			// prefix || res || b
+			input = slices.Concat(prefix, res, []byte{b})
+
+			// encrypt(prefix || res || b || secret || pad)
+			output := enc(input)
+
+			// We now know these two values:
+			//
+			//  1. encrypt(prefix || secret || ... )
+			//  2. encrypt(prefix || res || b || ... )
+			//
+			// Compare leading blocks to determine if b was the correct guess.
+			if bytes.Equal(output[:len(input)], want[:len(input)]) {
+				res = append(res, b)
+				continue outer
+			}
+		}
+
+		// No guesses were correct, so we're done.
+		//
+		// TODO: Use len(input) == len(want) as the completion criteria instead.
+		break
+	}
+
+	// We guessed some padding as well, so remove it.
+	//
+	// TODO: Can we avoid guessing any padding?
+	res = pkcs7unpad(res)
+
+	return res
 }
