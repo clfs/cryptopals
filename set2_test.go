@@ -86,3 +86,13 @@ func TestChallenge12(t *testing.T) {
 
 	t.Logf("got: %q", got)
 }
+
+func TestChallenge13(t *testing.T) {
+	m := newProfileManager()
+
+	profile := newAdminProfile(m)
+
+	if !m.isAdmin(profile) {
+		t.Errorf("not an admin profile: %x", profile)
+	}
+}
