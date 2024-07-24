@@ -103,6 +103,11 @@ func newCBCDecrypter(b cipher.Block, iv []byte) cipher.BlockMode {
 	return &cbcDecrypter{b, iv}
 }
 
+// randBool returns a random boolean.
+func randBool() bool {
+	return randInt64(1) == 0
+}
+
 // newECBOrCBCPrefixSuffixOracle returns a new oracle that encrypts inputs
 // as described in challenge 11.
 //
@@ -114,7 +119,7 @@ func newECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
 		iv     = randBytes(16)
 		prefix = randBytes(5 + randInt64(6))
 		suffix = randBytes(5 + randInt64(6))
-		useECB = randBytes(1) // TODO: Write randBool.
+		useECB = randBool()
 	)
 
 	return func(input []byte) []byte {
@@ -125,7 +130,7 @@ func newECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
 
 		var mode cipher.BlockMode
 
-		if useECB[0]%2 == 0 {
+		if useECB {
 			mode = newECBEncrypter(block)
 		} else {
 			mode = cipher.NewCBCEncrypter(block, iv)
