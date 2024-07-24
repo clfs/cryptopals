@@ -109,8 +109,8 @@ func randBool() bool {
 // NewECBOrCBCPrefixSuffixOracle returns a new oracle that encrypts inputs
 // as described in challenge 11.
 //
-// The oracle itself returns encrypt(pad(prefix || input || suffix)) under
-// either AES-128-ECB or AES-128-CBC.
+// The oracle returns encrypt(pad(prefix || input || suffix)) under either
+// AES-128-ECB or AES-128-CBC.
 func NewECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
 	var (
 		key    = randBytes(16)
@@ -159,36 +159,28 @@ func IsECBOracle(oracle func([]byte) []byte) bool {
 	return IsECBCiphertext(ct, bs)
 }
 
-// newChallenge12EncryptFunc returns a function that encrypts inputs under the
-// scheme described in challenge 12.
+// NewECBSuffixOracle returns an oracle that encrypts inputs as described in
+// challenge 12.
 //
-// The function follows these steps:
-//  1. It appends a secret suffix to the input.
-//  2. It encrypts the result under ECB mode with a consistent key.
-//
-// TODO: Pick a more appropriate name for the function.
-func newChallenge12EncryptFunc(suffix []byte) func([]byte) []byte {
-	key := make([]byte, 16)
-
-	if _, err := rand.Read(key); err != nil {
-		panic(err)
-	}
-
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		panic(err)
-	}
-
-	mode := NewECBEncrypter(block)
+// The oracle returns encrypt(pad(input || secret)).
+func NewECBSuffixOracle(secret []byte) func([]byte) []byte {
+	key := randBytes(16)
 
 	return func(input []byte) []byte {
-		// input || suffix
-		b := slices.Concat(input, suffix)
+		block, err := aes.NewCipher(key)
+		if err != nil {
+			panic(err)
+		}
 
-		// pad(input || suffix)
+		mode := NewECBEncrypter(block)
+
+		// input || secret
+		b := slices.Concat(input, secret)
+
+		// pad(input || secret)
 		b = PadPKCS7(b, aes.BlockSize)
 
-		// encrypt(k, pad(input || suffix))
+		// encrypt(pad(input || secret))
 		mode.CryptBlocks(b, b)
 
 		return b
