@@ -6,7 +6,6 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/subtle"
-	"log/slog"
 	"math"
 	"math/big"
 	"net/url"
@@ -145,14 +144,11 @@ func newECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
 func isECBOracle(oracle func([]byte) []byte) (isECB bool) {
 	bs := findBlockSize(oracle)
 
-	slog.Info("found block size", "bs", bs)
-
 	if bs == 1 {
 		return false // stream, asymmetric, etc.
 	}
 
 	// Large enough to guarantee that ECB encryption outputs a repeated block.
-
 	input := make([]byte, bs*3)
 	ct := oracle(input)
 	return isECBCiphertext(ct, bs)
