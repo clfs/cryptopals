@@ -105,7 +105,7 @@ func newCBCDecrypter(b cipher.Block, iv []byte) cipher.BlockMode {
 
 // randBool returns a random boolean.
 func randBool() bool {
-	return randInt64(1) == 0
+	return randInt64(2) == 0
 }
 
 // newECBOrCBCPrefixSuffixOracle returns a new oracle that encrypts inputs
