@@ -143,17 +143,19 @@ func NewECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
 	}
 }
 
-// isECBOracle returns true if an encryption oracle uses ECB mode.
-func isECBOracle(oracle func([]byte) []byte) (isECB bool) {
+// IsECBOracle returns true if an encryption oracle uses ECB mode.
+func IsECBOracle(oracle func([]byte) []byte) bool {
 	bs := findBlockSize(oracle)
 
 	if bs == 1 {
-		return false // stream, asymmetric, etc.
+		return false
 	}
 
-	// Large enough to guarantee that ECB encryption outputs a repeated block.
+	// Choose an input large enough to guarantee that ECB encryption outputs a
+	// repeated block.
 	input := make([]byte, bs*3)
 	ct := oracle(input)
+
 	return IsECBCiphertext(ct, bs)
 }
 
@@ -216,7 +218,7 @@ func findBlockSize(oracle func([]byte) []byte) int {
 func recoverChallenge12Suffix(oracle func([]byte) []byte) []byte {
 	bs := findBlockSize(oracle)
 
-	if !isECBOracle(oracle) {
+	if !IsECBOracle(oracle) {
 		panic("not ecb")
 	}
 
