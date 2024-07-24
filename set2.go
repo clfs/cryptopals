@@ -261,22 +261,19 @@ outer:
 	return res
 }
 
-// profileManager manages profiles as described in challenge 13.
-type profileManager struct {
+// ProfileManager manages profiles as described in challenge 13.
+type ProfileManager struct {
 	key []byte
 }
 
-// newProfileManager returns a new profile manager.
-func newProfileManager() *profileManager {
-	key := make([]byte, 16)
-	if _, err := rand.Read(key); err != nil {
-		panic(err)
-	}
-	return &profileManager{key: key}
+// NewProfileManager returns a new profile manager.
+func NewProfileManager() *ProfileManager {
+	key := randBytes(16)
+	return &ProfileManager{key: key}
 }
 
-// newUserProfile returns a new profile with user permissions.
-func (p profileManager) newUserProfile(email string) []byte {
+// NewUserProfile returns a new profile with user permissions.
+func (p ProfileManager) NewUserProfile(email string) []byte {
 	vals := url.Values{}
 
 	vals.Add("email", email)
@@ -297,8 +294,8 @@ func (p profileManager) newUserProfile(email string) []byte {
 	return res
 }
 
-// isAdmin returns true if the profile has admin permissions.
-func (p profileManager) isAdmin(profile []byte) bool {
+// IsAdmin returns true if the profile has admin permissions.
+func (p ProfileManager) IsAdmin(profile []byte) bool {
 	block, err := aes.NewCipher(p.key)
 	if err != nil {
 		panic(err)
@@ -319,11 +316,11 @@ func (p profileManager) isAdmin(profile []byte) bool {
 	return vals.Get("role") == "admin"
 }
 
-// newAdminProfile performs a cut-and-paste ECB attack to create an admin
+// NewAdminProfile performs a cut-and-paste ECB attack to create an admin
 // profile from multiple user profiles.
 //
 // TODO: Is this possible to do without using an invalid TLD (.admin)?
-func newAdminProfile(m *profileManager) []byte {
+func NewAdminProfile(m *ProfileManager) []byte {
 	// Note that profileManager decodes profiles into url.Values, which exhibits
 	// these behaviors:
 	//
@@ -335,14 +332,14 @@ func newAdminProfile(m *profileManager) []byte {
 	// |<-----a0----->||<-----a1----->||<-----a2----->|
 	// email=acorns%40example.com&role=user&uid=...
 
-	a := m.newUserProfile("acorns@example.com")
+	a := m.NewUserProfile("acorns@example.com")
 
 	// Force b1 to start with "admin&".
 	//
 	// |<-----b0----->||<-----b1----->||<-----b2----->|
 	// email=bagel%40x.admin&role=user&uid=...
 
-	b := m.newUserProfile("bagel@x.admin")
+	b := m.NewUserProfile("bagel@x.admin")
 
 	// Put a1 and b1 next to each other to create the substring "&role=admin&".
 	//

@@ -89,11 +89,11 @@ func TestChallenge12(t *testing.T) {
 }
 
 func TestChallenge13(t *testing.T) {
-	m := newProfileManager()
+	m := NewProfileManager()
 
-	profile := newAdminProfile(m)
+	profile := NewAdminProfile(m)
 
-	if !m.isAdmin(profile) {
+	if !m.IsAdmin(profile) {
 		t.Errorf("not an admin profile: %x", profile)
 	}
 }
