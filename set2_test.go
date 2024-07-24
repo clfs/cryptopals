@@ -29,7 +29,7 @@ func TestChallenge10(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mode := newCBCDecrypter(block, iv)
+	mode := NewCBCDecrypter(block, iv)
 
 	mode.CryptBlocks(in, in)
 
