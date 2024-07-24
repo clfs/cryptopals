@@ -145,7 +145,7 @@ func NewECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
 
 // IsECBOracle returns true if an encryption oracle uses ECB mode.
 func IsECBOracle(oracle func([]byte) []byte) bool {
-	bs := findBlockSize(oracle)
+	bs := FindBlockSize(oracle)
 
 	if bs == 1 {
 		return false
@@ -187,28 +187,27 @@ func NewECBSuffixOracle(secret []byte) func([]byte) []byte {
 	}
 }
 
-// findBlockSize returns the block size used by an encryption oracle.
-func findBlockSize(oracle func([]byte) []byte) int {
-	input := make([]byte, 1)
-
+// FindBlockSize returns the block size used by an encryption oracle.
+func FindBlockSize(oracle func([]byte) []byte) int {
 	// Find the ciphertext length for a 1-byte input.
+	input := make([]byte, 1)
 	start := len(oracle(input))
-	end := start
 
 	// Grow the input until the ciphertext length changes.
-	for start == end {
+	n := start
+	for n == start {
 		input = append(input, 0)
-		end = len(oracle(input))
+		n = len(oracle(input))
 	}
 
 	// The delta is the block size.
-	return end - start
+	return n - start
 }
 
 // recoverChallenge12Suffix takes a challenge-12 encryption oracle and
 // recovers the secret suffix used.
 func recoverChallenge12Suffix(oracle func([]byte) []byte) []byte {
-	bs := findBlockSize(oracle)
+	bs := FindBlockSize(oracle)
 
 	if !IsECBOracle(oracle) {
 		panic("not ecb")
