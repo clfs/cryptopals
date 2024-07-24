@@ -18,10 +18,10 @@ func HexToBase64(s string) (string, error) {
 	return base64.StdEncoding.EncodeToString(data), nil
 }
 
-// xor returns a xor b.
+// XOR returns a xor b.
 //
-// It panics if the lengths of a and b differ.
-func xor(a, b []byte) []byte {
+// It panics if a and b have different lengths.
+func XOR(a, b []byte) []byte {
 	if len(a) != len(b) {
 		panic("different lengths")
 	}

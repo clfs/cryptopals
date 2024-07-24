@@ -41,7 +41,7 @@ func TestChallenge2(t *testing.T) {
 	b := decodeHex(t, "686974207468652062756c6c277320657965")
 	want := decodeHex(t, "746865206b696420646f6e277420706c6179")
 
-	got := xor(a, b)
+	got := XOR(a, b)
 	if !bytes.Equal(want, got) {
 		t.Errorf("want %q, got %q", want, got)
 	}
