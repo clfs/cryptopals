@@ -156,7 +156,7 @@ func isECBOracle(oracle func([]byte) []byte) (isECB bool) {
 	// Large enough to guarantee that ECB encryption outputs a repeated block.
 	input := make([]byte, bs*3)
 	ct := oracle(input)
-	return isECBCiphertext(ct, bs)
+	return IsECBCiphertext(ct, bs)
 }
 
 // newChallenge12EncryptFunc returns a function that encrypts inputs under the

@@ -185,7 +185,9 @@ func TestChallenge8(t *testing.T) {
 	in := decodeHexStringsFromFile(t, "testdata/8.txt")
 	want := 132 // block 2, 4, 8, and 10 are all "08649af70dc06f4fd5d2d69c744cd283"
 
-	got := slices.IndexFunc(in, isAESECBCiphertext)
+	got := slices.IndexFunc(in, func(b []byte) bool {
+		return IsECBCiphertext(b, aes.BlockSize)
+	})
 	if want != got {
 		t.Errorf("wrong index: want %d, got %d", want, got)
 	}

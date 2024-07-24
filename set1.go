@@ -1,7 +1,6 @@
 package cryptopals
 
 import (
-	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
 	"encoding/hex"
@@ -294,13 +293,8 @@ func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
 	return ecbDecrypter{b}
 }
 
-// isAESECBCiphertext returns true if b is likely to be AES-ECB encrypted.
-func isAESECBCiphertext(b []byte) bool {
-	return isECBCiphertext(b, aes.BlockSize)
-}
-
-// isECBCiphertext returns true if b is likely to be ECB encrypted.
-func isECBCiphertext(b []byte, blockSize int) bool {
+// IsECBCiphertext returns true if b is likely to be ECB encrypted.
+func IsECBCiphertext(b []byte, blockSize int) bool {
 	if len(b)%blockSize != 0 {
 		return false
 	}
