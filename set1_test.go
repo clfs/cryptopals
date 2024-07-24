@@ -169,7 +169,7 @@ func TestChallenge7(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mode := newECBDecrypter(block)
+	mode := NewECBDecrypter(block)
 
 	mode.CryptBlocks(in, in)
 

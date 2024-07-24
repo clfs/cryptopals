@@ -282,15 +282,15 @@ func (e ecbDecrypter) CryptBlocks(dst, src []byte) {
 	}
 }
 
-// newECBEncrypter returns a cipher.BlockMode which encrypts in electronic
+// NewECBEncrypter returns a cipher.BlockMode which encrypts in electronic
 // codebook mode.
-func newECBEncrypter(b cipher.Block) cipher.BlockMode {
+func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
 	return ecbEncrypter{b}
 }
 
-// newECBDecrypter returns a cipher.BlockMode which decrypts in electronic
+// NewECBDecrypter returns a cipher.BlockMode which decrypts in electronic
 // codebook mode.
-func newECBDecrypter(b cipher.Block) cipher.BlockMode {
+func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
 	return ecbDecrypter{b}
 }
 

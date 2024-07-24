@@ -131,7 +131,7 @@ func newECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
 		var mode cipher.BlockMode
 
 		if useECB {
-			mode = newECBEncrypter(block)
+			mode = NewECBEncrypter(block)
 		} else {
 			mode = cipher.NewCBCEncrypter(block, iv)
 		}
@@ -179,7 +179,7 @@ func newChallenge12EncryptFunc(suffix []byte) func([]byte) []byte {
 		panic(err)
 	}
 
-	mode := newECBEncrypter(block)
+	mode := NewECBEncrypter(block)
 
 	return func(input []byte) []byte {
 		// input || suffix
@@ -300,7 +300,7 @@ func (p profileManager) newUserProfile(email string) []byte {
 		panic(err)
 	}
 
-	mode := newECBEncrypter(block)
+	mode := NewECBEncrypter(block)
 	mode.CryptBlocks(res, res)
 
 	return res
@@ -315,7 +315,7 @@ func (p profileManager) isAdmin(profile []byte) bool {
 
 	pt := make([]byte, len(profile))
 
-	mode := newECBDecrypter(block)
+	mode := NewECBDecrypter(block)
 	mode.CryptBlocks(pt, profile)
 
 	pt = pkcs7unpad(pt)
@@ -399,7 +399,7 @@ func newChallenge14EncryptFunc(secret []byte) func([]byte) []byte {
 			panic(err)
 		}
 
-		mode := newECBEncrypter(block)
+		mode := NewECBEncrypter(block)
 
 		mode.CryptBlocks(b, b)
 
