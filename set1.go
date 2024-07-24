@@ -37,8 +37,8 @@ type singleByteXORCipher struct {
 	key byte
 }
 
-// newSingleByteXORCipher returns a new single-byte XOR cipher.
-func newSingleByteXORCipher(key byte) cipher.Stream {
+// NewSingleByteXORCipher returns a new single-byte XOR cipher.
+func NewSingleByteXORCipher(key byte) cipher.Stream {
 	return singleByteXORCipher{key: key}
 }
 

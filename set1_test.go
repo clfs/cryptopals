@@ -57,7 +57,7 @@ func TestChallenge3(t *testing.T) {
 		t.Errorf("want %d, got %d", want, got)
 	}
 
-	newSingleByteXORCipher(got).XORKeyStream(ct, ct)
+	NewSingleByteXORCipher(got).XORKeyStream(ct, ct)
 	t.Logf("plaintext: %q", ct)
 }
 
@@ -98,7 +98,7 @@ func TestChallenge4(t *testing.T) {
 
 	ct := in[got]
 	key := recoverSingleByteXORKey(ct)
-	newSingleByteXORCipher(key).XORKeyStream(ct, ct)
+	NewSingleByteXORCipher(key).XORKeyStream(ct, ct)
 	t.Logf("plaintext: %q", ct)
 }
 
