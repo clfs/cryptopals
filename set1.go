@@ -143,8 +143,8 @@ type repeatingKeyXORCipher struct {
 	i   int
 }
 
-// newRepeatingKeyXORCipher returns a new repeating-key XOR cipher.
-func newRepeatingKeyXORCipher(key []byte) cipher.Stream {
+// NewRepeatingKeyXORCipher returns a new repeating-key XOR cipher.
+func NewRepeatingKeyXORCipher(key []byte) cipher.Stream {
 	return &repeatingKeyXORCipher{key: key}
 }
 

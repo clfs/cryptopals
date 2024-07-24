@@ -108,7 +108,7 @@ I go crazy when I hear a cymbal`)
 	key := []byte("ICE")
 	want := decodeHex(t, "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f")
 
-	newRepeatingKeyXORCipher(key).XORKeyStream(pt, pt)
+	NewRepeatingKeyXORCipher(key).XORKeyStream(pt, pt)
 
 	if !bytes.Equal(want, pt) {
 		t.Errorf("want %q, got %q", pt, pt)
@@ -155,7 +155,7 @@ func TestChallenge6(t *testing.T) {
 		t.Errorf("want %q, got %q", want, got)
 	}
 
-	newRepeatingKeyXORCipher(got).XORKeyStream(in, in)
+	NewRepeatingKeyXORCipher(got).XORKeyStream(in, in)
 	t.Logf("plaintext: %q", in)
 }
 
