@@ -149,7 +149,7 @@ func TestChallenge6(t *testing.T) {
 	in := decodeBase64FromFile(t, "testdata/6.txt")
 	want := []byte("Terminator X: Bring the noise")
 
-	got := recoverRepeatingKeyXORKey(in)
+	got := RecoverRepeatingKeyXORKey(in)
 
 	if !bytes.Equal(want, got) {
 		t.Errorf("want %q, got %q", want, got)

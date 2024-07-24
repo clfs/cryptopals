@@ -205,23 +205,22 @@ func RecoverRepeatingKeyXORKeySize(ct []byte, lo, hi int) int {
 	return bestKeySize
 }
 
-// recoverRepeatingKeyXORKey returns the most likely key for a repeating-key
+// RecoverRepeatingKeyXORKey returns the most likely key for a repeating-key
 // XOR ciphertext.
 //
-// It assumes the plaintext is English.
-//
-// It also assumes that the key size is between 2 and 40 bytes.
-func recoverRepeatingKeyXORKey(ct []byte) []byte {
+// It assumes the plaintext is English. It also assumes that the key size is
+// between 2 and 40 bytes.
+func RecoverRepeatingKeyXORKey(ct []byte) []byte {
 	var key []byte
 
 	ks := RecoverRepeatingKeyXORKeySize(ct, 2, 40)
 
 	for i := range ks {
-		var column []byte
+		var b []byte
 		for j := i; j < len(ct); j += ks {
-			column = append(column, ct[j])
+			b = append(b, ct[j])
 		}
-		key = append(key, RecoverSingleByteXORKey(column))
+		key = append(key, RecoverSingleByteXORKey(b))
 	}
 
 	return key
