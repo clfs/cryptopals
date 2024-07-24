@@ -9,8 +9,8 @@ import (
 	"math/bits"
 )
 
-// hexToBase64 converts a hex-encoded string to a Base64-encoded string.
-func hexToBase64(s string) (string, error) {
+// HexToBase64 converts a hex-encoded string to a Base64-encoded string.
+func HexToBase64(s string) (string, error) {
 	data, err := hex.DecodeString(s)
 	if err != nil {
 		return "", err
