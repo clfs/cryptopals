@@ -158,10 +158,10 @@ func (r *repeatingKeyXORCipher) XORKeyStream(dst, src []byte) {
 	}
 }
 
-// hamming returns the Hamming distance between a and b.
+// Hamming returns the Hamming distance between a and b.
 //
 // It panics if a and b have different lengths.
-func hamming(a, b []byte) int {
+func Hamming(a, b []byte) int {
 	if len(a) != len(b) {
 		panic("different lengths")
 	}
@@ -187,7 +187,7 @@ func recoverRepeatingKeyXORKeySize(ct []byte, a, b int) int {
 
 	for ks := a; ks <= b; ks++ {
 		x, y := ct[:ks*4], ct[ks*4:ks*8]
-		h := hamming(x, y)
+		h := Hamming(x, y)
 
 		score := float64(h) / float64(ks)
 

@@ -139,7 +139,7 @@ func TestHamming(t *testing.T) {
 	b := []byte("wokka wokka!!!")
 	want := 37
 
-	got := hamming(a, b)
+	got := Hamming(a, b)
 	if want != got {
 		t.Errorf("want %d, got %d", want, got)
 	}
