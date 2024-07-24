@@ -48,7 +48,7 @@ func TestChallenge11(t *testing.T) {
 	)
 
 	for range 100 {
-		oracle := newECBOrCBCPrefixSuffixOracle()
+		oracle := NewECBOrCBCPrefixSuffixOracle()
 		if isECBOracle(oracle) {
 			nECB++
 		} else {

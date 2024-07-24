@@ -106,12 +106,12 @@ func randBool() bool {
 	return randInt64(2) == 0
 }
 
-// newECBOrCBCPrefixSuffixOracle returns a new oracle that encrypts inputs
+// NewECBOrCBCPrefixSuffixOracle returns a new oracle that encrypts inputs
 // as described in challenge 11.
 //
 // The oracle itself returns encrypt(pad(prefix || input || suffix)) under
 // either AES-128-ECB or AES-128-CBC.
-func newECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
+func NewECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
 	var (
 		key    = randBytes(16)
 		iv     = randBytes(16)
