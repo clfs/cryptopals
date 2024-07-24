@@ -14,12 +14,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// pkcs7pad appends PKCS#7 padding to b to guarantee block size n. It returns
-// the updated slice.
-//
-// TODO: Stop modifying the input slice.
-func pkcs7pad(b []byte, n int) []byte {
-	if n < 0 || n > math.MaxUint8 {
+// PKCS7Pad returns a new slice that concatenates b with PKCS #7 padding to
+// guarantee block size n.
+func PKCS7Pad(b []byte, n int) []byte {
+	if n < 1 || n > math.MaxUint8 {
 		panic("invalid block size")
 	}
 
@@ -27,7 +25,7 @@ func pkcs7pad(b []byte, n int) []byte {
 
 	padding := bytes.Repeat([]byte{p}, int(p))
 
-	return append(b, padding...)
+	return slices.Concat(b, padding)
 }
 
 // pkcs7unpad returns a new slice with PKCS#7 padding removed.
@@ -137,7 +135,7 @@ func newECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
 		}
 
 		res := slices.Concat(prefix, input, suffix)
-		res = pkcs7pad(res, mode.BlockSize())
+		res = PKCS7Pad(res, mode.BlockSize())
 
 		mode.CryptBlocks(res, res)
 
@@ -186,7 +184,7 @@ func newChallenge12EncryptFunc(suffix []byte) func([]byte) []byte {
 		b := slices.Concat(input, suffix)
 
 		// pad(input || suffix)
-		b = pkcs7pad(b, aes.BlockSize)
+		b = PKCS7Pad(b, aes.BlockSize)
 
 		// encrypt(k, pad(input || suffix))
 		mode.CryptBlocks(b, b)
@@ -293,7 +291,7 @@ func (p profileManager) newUserProfile(email string) []byte {
 	vals.Add("role", "user")
 
 	res := []byte(vals.Encode())
-	res = pkcs7pad(res, aes.BlockSize)
+	res = PKCS7Pad(res, aes.BlockSize)
 
 	block, err := aes.NewCipher(p.key)
 	if err != nil {
@@ -392,7 +390,7 @@ func newChallenge14EncryptFunc(secret []byte) func([]byte) []byte {
 
 	return func(input []byte) []byte {
 		b := slices.Concat(prefix, input, secret)
-		b = pkcs7pad(b, aes.BlockSize)
+		b = PKCS7Pad(b, aes.BlockSize)
 
 		block, err := aes.NewCipher(key)
 		if err != nil {

@@ -12,7 +12,7 @@ func TestChallenge9(t *testing.T) {
 	n := 20
 	want := []byte("YELLOW SUBMARINE\x04\x04\x04\x04")
 
-	got := pkcs7pad(in, n)
+	got := PKCS7Pad(in, n)
 	if !bytes.Equal(want, got) {
 		t.Errorf("want %q, got %q", want, got)
 	}
