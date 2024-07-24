@@ -1,7 +1,6 @@
 package cryptopals
 
 import (
-	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
 	"encoding/hex"
@@ -18,10 +17,10 @@ func HexToBase64(s string) (string, error) {
 	return base64.StdEncoding.EncodeToString(data), nil
 }
 
-// xor returns a xor b.
+// XOR returns a xor b.
 //
-// It panics if the lengths of a and b differ.
-func xor(a, b []byte) []byte {
+// It panics if a and b have different lengths.
+func XOR(a, b []byte) []byte {
 	if len(a) != len(b) {
 		panic("different lengths")
 	}
@@ -37,8 +36,8 @@ type singleByteXORCipher struct {
 	key byte
 }
 
-// newSingleByteXORCipher returns a new single-byte XOR cipher.
-func newSingleByteXORCipher(key byte) cipher.Stream {
+// NewSingleByteXORCipher returns a new single-byte XOR cipher.
+func NewSingleByteXORCipher(key byte) cipher.Stream {
 	return singleByteXORCipher{key: key}
 }
 
@@ -51,51 +50,48 @@ func (s singleByteXORCipher) XORKeyStream(dst, src []byte) {
 	}
 }
 
-// englishness scores s on how much it resembles English.
+// Englishness scores b on how much it resembles English.
 //
 // Scores are length-normalized and between 0 and 1 inclusive. Higher is better.
 //
-// If s is empty, it returns 0.
-func englishness(b []byte) float64 {
+// If len(b) == 0, Englishness returns 0.
+func Englishness(b []byte) float64 {
 	if len(b) == 0 {
 		return 0
 	}
 
-	var points int
-
-	for i := range b {
-		switch b[i] {
-		case ' ':
-			points += 5
-		case 'e', 't', 'a':
-			points += 2
-		}
+	weights := map[byte]float64{
+		' ': 5,
+		'e': 2,
+		't': 2,
+		'a': 2,
 	}
 
-	normalized := float64(points) / float64(len(b))
-
-	return normalized
+	var n float64
+	for _, v := range b {
+		n += weights[v]
+	}
+	return n / float64(len(b))
 }
 
-// recoverSingleByteXORKey returns the most likely key for a single-byte XOR
+// RecoverSingleByteXORKey returns the most likely key for a single-byte XOR
 // ciphertext.
 //
 // It assumes the plaintext is English.
-func recoverSingleByteXORKey(ct []byte) byte {
+func RecoverSingleByteXORKey(ct []byte) byte {
 	var (
 		bestKey   byte
-		bestScore float64 // higher is better
+		bestScore float64 // Higher is better.
 	)
 
 	pt := make([]byte, len(ct))
 
 	for i := range math.MaxUint8 {
 		key := byte(i)
-		cipher := singleByteXORCipher{key: key}
 
-		cipher.XORKeyStream(pt, ct)
+		NewSingleByteXORCipher(key).XORKeyStream(pt, ct)
 
-		score := englishness(pt)
+		score := Englishness(pt)
 
 		if score > bestScore {
 			bestScore = score
@@ -106,30 +102,29 @@ func recoverSingleByteXORKey(ct []byte) byte {
 	return bestKey
 }
 
-// findSingleByteXORCiphertext returns the index of the ciphertext most likely
+// FindSingleByteXORCiphertext returns the index of the ciphertext most likely
 // to be single-byte XOR encrypted.
 //
-// If cts is empty, it returns -1.
-func findSingleByteXORCiphertext(cts [][]byte) int {
+// FindSingleByteXORCiphertext returns -1 if no ciphertext was found.
+func FindSingleByteXORCiphertext(cts [][]byte) int {
 	if len(cts) == 0 {
 		return -1
 	}
 
 	var (
 		bestIndex int
-		bestScore float64 // higher is better
+		bestScore float64 // Higher is better.
 	)
 
 	for i, ct := range cts {
 		pt := make([]byte, len(ct))
 
-		for j := range math.MaxUint8 {
-			key := byte(j)
-			cipher := singleByteXORCipher{key: key}
+		for k := range math.MaxUint8 {
+			key := byte(k)
 
-			cipher.XORKeyStream(pt, ct)
+			NewSingleByteXORCipher(key).XORKeyStream(pt, ct)
 
-			score := englishness(pt)
+			score := Englishness(pt)
 
 			if score > bestScore {
 				bestScore = score
@@ -147,8 +142,8 @@ type repeatingKeyXORCipher struct {
 	i   int
 }
 
-// newRepeatingKeyXORCipher returns a new repeating-key XOR cipher.
-func newRepeatingKeyXORCipher(key []byte) cipher.Stream {
+// NewRepeatingKeyXORCipher returns a new repeating-key XOR cipher.
+func NewRepeatingKeyXORCipher(key []byte) cipher.Stream {
 	return &repeatingKeyXORCipher{key: key}
 }
 
@@ -162,10 +157,10 @@ func (r *repeatingKeyXORCipher) XORKeyStream(dst, src []byte) {
 	}
 }
 
-// hamming returns the Hamming distance between a and b.
+// Hamming returns the Hamming distance between a and b.
 //
 // It panics if a and b have different lengths.
-func hamming(a, b []byte) int {
+func Hamming(a, b []byte) int {
 	if len(a) != len(b) {
 		panic("different lengths")
 	}
@@ -177,21 +172,26 @@ func hamming(a, b []byte) int {
 	return res
 }
 
-// recoverRepeatingKeyXORKeySize returns the most likely key size for a
-// repeating-key XOR ciphertext, within a to b inclusive.
+// RecoverRepeatingKeyXORKeySize returns the most likely key size for a
+// repeating-key XOR ciphertext, within lo to hi inclusive.
 //
 // It assumes that the plaintext is English.
 //
 // TODO: Avoid panicking when a or b is large compared to len(ct).
-func recoverRepeatingKeyXORKeySize(ct []byte, a, b int) int {
+func RecoverRepeatingKeyXORKeySize(ct []byte, lo, hi int) int {
+	if lo > hi {
+		panic("lo > hi")
+	}
+
 	var (
 		bestKeySize int
-		bestScore   = math.MaxFloat64 // lower is better
+		bestScore   = math.MaxFloat64 // Lower is better.
 	)
 
-	for ks := a; ks <= b; ks++ {
+	for ks := lo; ks <= hi; ks++ {
 		x, y := ct[:ks*4], ct[ks*4:ks*8]
-		h := hamming(x, y)
+
+		h := Hamming(x, y)
 
 		score := float64(h) / float64(ks)
 
@@ -204,23 +204,22 @@ func recoverRepeatingKeyXORKeySize(ct []byte, a, b int) int {
 	return bestKeySize
 }
 
-// recoverRepeatingKeyXORKey returns the most likely key for a repeating-key
+// RecoverRepeatingKeyXORKey returns the most likely key for a repeating-key
 // XOR ciphertext.
 //
-// It assumes the plaintext is English.
-//
-// It also assumes that the key size is between 2 and 40 bytes.
-func recoverRepeatingKeyXORKey(ct []byte) []byte {
+// It assumes the plaintext is English. It also assumes that the key size is
+// between 2 and 40 bytes.
+func RecoverRepeatingKeyXORKey(ct []byte) []byte {
 	var key []byte
 
-	ks := recoverRepeatingKeyXORKeySize(ct, 2, 40)
+	ks := RecoverRepeatingKeyXORKeySize(ct, 2, 40)
 
 	for i := range ks {
-		var column []byte
+		var b []byte
 		for j := i; j < len(ct); j += ks {
-			column = append(column, ct[j])
+			b = append(b, ct[j])
 		}
-		key = append(key, recoverSingleByteXORKey(column))
+		key = append(key, RecoverSingleByteXORKey(b))
 	}
 
 	return key
@@ -282,25 +281,20 @@ func (e ecbDecrypter) CryptBlocks(dst, src []byte) {
 	}
 }
 
-// newECBEncrypter returns a cipher.BlockMode which encrypts in electronic
+// NewECBEncrypter returns a cipher.BlockMode which encrypts in electronic
 // codebook mode.
-func newECBEncrypter(b cipher.Block) cipher.BlockMode {
+func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
 	return ecbEncrypter{b}
 }
 
-// newECBDecrypter returns a cipher.BlockMode which decrypts in electronic
+// NewECBDecrypter returns a cipher.BlockMode which decrypts in electronic
 // codebook mode.
-func newECBDecrypter(b cipher.Block) cipher.BlockMode {
+func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
 	return ecbDecrypter{b}
 }
 
-// isAESECBCiphertext returns true if b is likely to be AES-ECB encrypted.
-func isAESECBCiphertext(b []byte) bool {
-	return isECBCiphertext(b, aes.BlockSize)
-}
-
-// isECBCiphertext returns true if b is likely to be ECB encrypted.
-func isECBCiphertext(b []byte, blockSize int) bool {
+// IsECBCiphertext returns true if b is likely to be ECB encrypted.
+func IsECBCiphertext(b []byte, blockSize int) bool {
 	if len(b)%blockSize != 0 {
 		return false
 	}

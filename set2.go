@@ -14,12 +14,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// pkcs7pad appends PKCS#7 padding to b to guarantee block size n. It returns
-// the updated slice.
-//
-// TODO: Stop modifying the input slice.
-func pkcs7pad(b []byte, n int) []byte {
-	if n < 0 || n > math.MaxUint8 {
+// PadPKCS7 returns a new slice that concatenates b with PKCS #7 padding to
+// guarantee block size n.
+func PadPKCS7(b []byte, n int) []byte {
+	if n < 1 || n > math.MaxUint8 {
 		panic("invalid block size")
 	}
 
@@ -27,13 +25,13 @@ func pkcs7pad(b []byte, n int) []byte {
 
 	padding := bytes.Repeat([]byte{p}, int(p))
 
-	return append(b, padding...)
+	return slices.Concat(b, padding)
 }
 
-// pkcs7unpad returns a new slice with PKCS#7 padding removed.
-func pkcs7unpad(b []byte) []byte {
+// UnpadPKCS7 returns a subslice of b with PKCS #7 padding removed.
+func UnpadPKCS7(b []byte) []byte {
 	n := int(b[len(b)-1])
-	return bytes.Clone(b[:len(b)-n])
+	return b[:len(b)-n]
 }
 
 type cbcDecrypter struct {
@@ -94,9 +92,9 @@ func (c *cbcDecrypter) CryptBlocks(dst, src []byte) {
 	c.iv = tmp
 }
 
-// newCBCDecrypter returns a cipher.BlockMode which decrypts in cipher block
+// NewCBCDecrypter returns a cipher.BlockMode which decrypts in cipher block
 // chaining mode.
-func newCBCDecrypter(b cipher.Block, iv []byte) cipher.BlockMode {
+func NewCBCDecrypter(b cipher.Block, iv []byte) cipher.BlockMode {
 	if len(iv) != b.BlockSize() {
 		panic("invalid iv length")
 	}
@@ -108,12 +106,12 @@ func randBool() bool {
 	return randInt64(2) == 0
 }
 
-// newECBOrCBCPrefixSuffixOracle returns a new oracle that encrypts inputs
+// NewECBOrCBCPrefixSuffixOracle returns a new oracle that encrypts inputs
 // as described in challenge 11.
 //
-// The oracle itself returns encrypt(pad(prefix || input || suffix)) under
-// either AES-128-ECB or AES-128-CBC.
-func newECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
+// The oracle returns encrypt(pad(prefix || input || suffix)) under either
+// AES-128-ECB or AES-128-CBC.
+func NewECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
 	var (
 		key    = randBytes(16)
 		iv     = randBytes(16)
@@ -131,13 +129,13 @@ func newECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
 		var mode cipher.BlockMode
 
 		if useECB {
-			mode = newECBEncrypter(block)
+			mode = NewECBEncrypter(block)
 		} else {
 			mode = cipher.NewCBCEncrypter(block, iv)
 		}
 
 		res := slices.Concat(prefix, input, suffix)
-		res = pkcs7pad(res, mode.BlockSize())
+		res = PadPKCS7(res, mode.BlockSize())
 
 		mode.CryptBlocks(res, res)
 
@@ -145,80 +143,73 @@ func newECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
 	}
 }
 
-// isECBOracle returns true if an encryption oracle uses ECB mode.
-func isECBOracle(oracle func([]byte) []byte) (isECB bool) {
-	bs := findBlockSize(oracle)
+// IsECBOracle returns true if an encryption oracle uses ECB mode.
+func IsECBOracle(oracle func([]byte) []byte) bool {
+	bs := FindBlockSize(oracle)
 
 	if bs == 1 {
-		return false // stream, asymmetric, etc.
+		return false
 	}
 
-	// Large enough to guarantee that ECB encryption outputs a repeated block.
+	// Choose an input large enough to guarantee that ECB encryption outputs a
+	// repeated block.
 	input := make([]byte, bs*3)
 	ct := oracle(input)
-	return isECBCiphertext(ct, bs)
+
+	return IsECBCiphertext(ct, bs)
 }
 
-// newChallenge12EncryptFunc returns a function that encrypts inputs under the
-// scheme described in challenge 12.
+// NewECBSuffixOracle returns an oracle that encrypts inputs as described in
+// challenge 12.
 //
-// The function follows these steps:
-//  1. It appends a secret suffix to the input.
-//  2. It encrypts the result under ECB mode with a consistent key.
-//
-// TODO: Pick a more appropriate name for the function.
-func newChallenge12EncryptFunc(suffix []byte) func([]byte) []byte {
-	key := make([]byte, 16)
-
-	if _, err := rand.Read(key); err != nil {
-		panic(err)
-	}
-
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		panic(err)
-	}
-
-	mode := newECBEncrypter(block)
+// The oracle returns encrypt(pad(input || secret)).
+func NewECBSuffixOracle(secret []byte) func([]byte) []byte {
+	key := randBytes(16)
 
 	return func(input []byte) []byte {
-		// input || suffix
-		b := slices.Concat(input, suffix)
+		block, err := aes.NewCipher(key)
+		if err != nil {
+			panic(err)
+		}
 
-		// pad(input || suffix)
-		b = pkcs7pad(b, aes.BlockSize)
+		mode := NewECBEncrypter(block)
 
-		// encrypt(k, pad(input || suffix))
+		// input || secret
+		b := slices.Concat(input, secret)
+
+		// pad(input || secret)
+		b = PadPKCS7(b, aes.BlockSize)
+
+		// encrypt(pad(input || secret))
 		mode.CryptBlocks(b, b)
 
 		return b
 	}
 }
 
-// findBlockSize returns the block size used by an encryption oracle.
-func findBlockSize(oracle func([]byte) []byte) int {
-	input := make([]byte, 1)
-
+// FindBlockSize returns the block size used by an encryption oracle.
+func FindBlockSize(oracle func([]byte) []byte) int {
 	// Find the ciphertext length for a 1-byte input.
+	input := make([]byte, 1)
 	start := len(oracle(input))
-	end := start
 
 	// Grow the input until the ciphertext length changes.
-	for start == end {
+	n := start
+	for n == start {
 		input = append(input, 0)
-		end = len(oracle(input))
+		n = len(oracle(input))
 	}
 
 	// The delta is the block size.
-	return end - start
+	return n - start
 }
 
-// recoverChallenge12Suffix takes a challenge-12 encryption oracle and
-// recovers the secret suffix used.
-func recoverChallenge12Suffix(oracle func([]byte) []byte) []byte {
-	bs := findBlockSize(oracle)
+// RecoverECBSuffixOracleSecret takes an encryption oracle that behaves as
+// described in challenge 12 and recovers the secret used.
+func RecoverECBSuffixOracleSecret(oracle func([]byte) []byte) []byte {
+	bs := FindBlockSize(oracle)
 
-	if !isECBOracle(oracle) {
+	if !IsECBOracle(oracle) {
 		panic("not ecb")
 	}
 
@@ -265,27 +256,24 @@ outer:
 	// We guessed some padding as well, so remove it.
 	//
 	// TODO: Can we avoid guessing any padding?
-	res = pkcs7unpad(res)
+	res = UnpadPKCS7(res)
 
 	return res
 }
 
-// profileManager manages profiles as described in challenge 13.
-type profileManager struct {
+// ProfileManager manages profiles as described in challenge 13.
+type ProfileManager struct {
 	key []byte
 }
 
-// newProfileManager returns a new profile manager.
-func newProfileManager() *profileManager {
-	key := make([]byte, 16)
-	if _, err := rand.Read(key); err != nil {
-		panic(err)
-	}
-	return &profileManager{key: key}
+// NewProfileManager returns a new profile manager.
+func NewProfileManager() *ProfileManager {
+	key := randBytes(16)
+	return &ProfileManager{key: key}
 }
 
-// newUserProfile returns a new profile with user permissions.
-func (p profileManager) newUserProfile(email string) []byte {
+// NewUserProfile returns a new profile with user permissions.
+func (p ProfileManager) NewUserProfile(email string) []byte {
 	vals := url.Values{}
 
 	vals.Add("email", email)
@@ -293,21 +281,21 @@ func (p profileManager) newUserProfile(email string) []byte {
 	vals.Add("role", "user")
 
 	res := []byte(vals.Encode())
-	res = pkcs7pad(res, aes.BlockSize)
+	res = PadPKCS7(res, aes.BlockSize)
 
 	block, err := aes.NewCipher(p.key)
 	if err != nil {
 		panic(err)
 	}
 
-	mode := newECBEncrypter(block)
+	mode := NewECBEncrypter(block)
 	mode.CryptBlocks(res, res)
 
 	return res
 }
 
-// isAdmin returns true if the profile has admin permissions.
-func (p profileManager) isAdmin(profile []byte) bool {
+// IsAdmin returns true if the profile has admin permissions.
+func (p ProfileManager) IsAdmin(profile []byte) bool {
 	block, err := aes.NewCipher(p.key)
 	if err != nil {
 		panic(err)
@@ -315,10 +303,10 @@ func (p profileManager) isAdmin(profile []byte) bool {
 
 	pt := make([]byte, len(profile))
 
-	mode := newECBDecrypter(block)
+	mode := NewECBDecrypter(block)
 	mode.CryptBlocks(pt, profile)
 
-	pt = pkcs7unpad(pt)
+	pt = UnpadPKCS7(pt)
 
 	vals, err := url.ParseQuery(string(pt))
 	if err != nil {
@@ -328,11 +316,11 @@ func (p profileManager) isAdmin(profile []byte) bool {
 	return vals.Get("role") == "admin"
 }
 
-// newAdminProfile performs a cut-and-paste ECB attack to create an admin
+// NewAdminProfile performs a cut-and-paste ECB attack to create an admin
 // profile from multiple user profiles.
 //
 // TODO: Is this possible to do without using an invalid TLD (.admin)?
-func newAdminProfile(m *profileManager) []byte {
+func NewAdminProfile(m *ProfileManager) []byte {
 	// Note that profileManager decodes profiles into url.Values, which exhibits
 	// these behaviors:
 	//
@@ -344,14 +332,14 @@ func newAdminProfile(m *profileManager) []byte {
 	// |<-----a0----->||<-----a1----->||<-----a2----->|
 	// email=acorns%40example.com&role=user&uid=...
 
-	a := m.newUserProfile("acorns@example.com")
+	a := m.NewUserProfile("acorns@example.com")
 
 	// Force b1 to start with "admin&".
 	//
 	// |<-----b0----->||<-----b1----->||<-----b2----->|
 	// email=bagel%40x.admin&role=user&uid=...
 
-	b := m.newUserProfile("bagel@x.admin")
+	b := m.NewUserProfile("bagel@x.admin")
 
 	// Put a1 and b1 next to each other to create the substring "&role=admin&".
 	//
@@ -379,12 +367,12 @@ func randBytes(n int64) []byte {
 	return b
 }
 
-// newChallenge14EncryptFunc returns a new encryption function that behaves as
+// NewECBPrefixSuffixOracle returns an encryption oracle that behaves as
 // described in challenge 14.
 //
 // It returns AES-128-ECB(key, prefix || input || secret). The key and prefix
-// are both random and fixed.
-func newChallenge14EncryptFunc(secret []byte) func([]byte) []byte {
+// are random and fixed.
+func NewECBPrefixSuffixOracle(secret []byte) func([]byte) []byte {
 	var (
 		key    = randBytes(16)
 		prefix = randBytes(1 + randInt64(50))
@@ -392,14 +380,14 @@ func newChallenge14EncryptFunc(secret []byte) func([]byte) []byte {
 
 	return func(input []byte) []byte {
 		b := slices.Concat(prefix, input, secret)
-		b = pkcs7pad(b, aes.BlockSize)
+		b = PadPKCS7(b, aes.BlockSize)
 
 		block, err := aes.NewCipher(key)
 		if err != nil {
 			panic(err)
 		}
 
-		mode := newECBEncrypter(block)
+		mode := NewECBEncrypter(block)
 
 		mode.CryptBlocks(b, b)
 

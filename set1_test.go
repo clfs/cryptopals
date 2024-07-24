@@ -41,7 +41,7 @@ func TestChallenge2(t *testing.T) {
 	b := decodeHex(t, "686974207468652062756c6c277320657965")
 	want := decodeHex(t, "746865206b696420646f6e277420706c6179")
 
-	got := xor(a, b)
+	got := XOR(a, b)
 	if !bytes.Equal(want, got) {
 		t.Errorf("want %q, got %q", want, got)
 	}
@@ -51,13 +51,13 @@ func TestChallenge3(t *testing.T) {
 	ct := decodeHex(t, "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
 	want := byte(88)
 
-	got := recoverSingleByteXORKey(ct)
+	got := RecoverSingleByteXORKey(ct)
 
 	if want != got {
 		t.Errorf("want %d, got %d", want, got)
 	}
 
-	newSingleByteXORCipher(got).XORKeyStream(ct, ct)
+	NewSingleByteXORCipher(got).XORKeyStream(ct, ct)
 	t.Logf("plaintext: %q", ct)
 }
 
@@ -90,15 +90,15 @@ func TestChallenge4(t *testing.T) {
 	in := decodeHexStringsFromFile(t, "testdata/4.txt")
 	want := 170
 
-	got := findSingleByteXORCiphertext(in)
+	got := FindSingleByteXORCiphertext(in)
 
 	if want != got {
 		t.Errorf("wrong index: want %d, got %d", want, got)
 	}
 
 	ct := in[got]
-	key := recoverSingleByteXORKey(ct)
-	newSingleByteXORCipher(key).XORKeyStream(ct, ct)
+	key := RecoverSingleByteXORKey(ct)
+	NewSingleByteXORCipher(key).XORKeyStream(ct, ct)
 	t.Logf("plaintext: %q", ct)
 }
 
@@ -108,7 +108,7 @@ I go crazy when I hear a cymbal`)
 	key := []byte("ICE")
 	want := decodeHex(t, "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f")
 
-	newRepeatingKeyXORCipher(key).XORKeyStream(pt, pt)
+	NewRepeatingKeyXORCipher(key).XORKeyStream(pt, pt)
 
 	if !bytes.Equal(want, pt) {
 		t.Errorf("want %q, got %q", pt, pt)
@@ -139,7 +139,7 @@ func TestHamming(t *testing.T) {
 	b := []byte("wokka wokka!!!")
 	want := 37
 
-	got := hamming(a, b)
+	got := Hamming(a, b)
 	if want != got {
 		t.Errorf("want %d, got %d", want, got)
 	}
@@ -149,13 +149,13 @@ func TestChallenge6(t *testing.T) {
 	in := decodeBase64FromFile(t, "testdata/6.txt")
 	want := []byte("Terminator X: Bring the noise")
 
-	got := recoverRepeatingKeyXORKey(in)
+	got := RecoverRepeatingKeyXORKey(in)
 
 	if !bytes.Equal(want, got) {
 		t.Errorf("want %q, got %q", want, got)
 	}
 
-	newRepeatingKeyXORCipher(got).XORKeyStream(in, in)
+	NewRepeatingKeyXORCipher(got).XORKeyStream(in, in)
 	t.Logf("plaintext: %q", in)
 }
 
@@ -169,7 +169,7 @@ func TestChallenge7(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mode := newECBDecrypter(block)
+	mode := NewECBDecrypter(block)
 
 	mode.CryptBlocks(in, in)
 
@@ -185,7 +185,9 @@ func TestChallenge8(t *testing.T) {
 	in := decodeHexStringsFromFile(t, "testdata/8.txt")
 	want := 132 // block 2, 4, 8, and 10 are all "08649af70dc06f4fd5d2d69c744cd283"
 
-	got := slices.IndexFunc(in, isAESECBCiphertext)
+	got := slices.IndexFunc(in, func(b []byte) bool {
+		return IsECBCiphertext(b, aes.BlockSize)
+	})
 	if want != got {
 		t.Errorf("wrong index: want %d, got %d", want, got)
 	}

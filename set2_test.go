@@ -12,7 +12,7 @@ func TestChallenge9(t *testing.T) {
 	n := 20
 	want := []byte("YELLOW SUBMARINE\x04\x04\x04\x04")
 
-	got := pkcs7pad(in, n)
+	got := PadPKCS7(in, n)
 	if !bytes.Equal(want, got) {
 		t.Errorf("want %q, got %q", want, got)
 	}
@@ -29,7 +29,7 @@ func TestChallenge10(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mode := newCBCDecrypter(block, iv)
+	mode := NewCBCDecrypter(block, iv)
 
 	mode.CryptBlocks(in, in)
 
@@ -48,8 +48,8 @@ func TestChallenge11(t *testing.T) {
 	)
 
 	for range 100 {
-		oracle := newECBOrCBCPrefixSuffixOracle()
-		if isECBOracle(oracle) {
+		oracle := NewECBOrCBCPrefixSuffixOracle()
+		if IsECBOracle(oracle) {
 			nECB++
 		} else {
 			nCBC++
@@ -76,9 +76,9 @@ func decodeBase64(t *testing.T, s string) []byte {
 
 func TestChallenge12(t *testing.T) {
 	secret := decodeBase64(t, "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK")
-	enc := newChallenge12EncryptFunc(secret)
+	enc := NewECBSuffixOracle(secret)
 
-	got := recoverChallenge12Suffix(enc)
+	got := RecoverECBSuffixOracleSecret(enc)
 
 	if !bytes.Equal(secret, got) {
 		// Avoid revealing the answer if the test fails.
@@ -89,11 +89,11 @@ func TestChallenge12(t *testing.T) {
 }
 
 func TestChallenge13(t *testing.T) {
-	m := newProfileManager()
+	m := NewProfileManager()
 
-	profile := newAdminProfile(m)
+	profile := NewAdminProfile(m)
 
-	if !m.isAdmin(profile) {
+	if !m.IsAdmin(profile) {
 		t.Errorf("not an admin profile: %x", profile)
 	}
 }
