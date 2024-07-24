@@ -14,9 +14,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// PKCS7Pad returns a new slice that concatenates b with PKCS #7 padding to
+// PadPKCS7 returns a new slice that concatenates b with PKCS #7 padding to
 // guarantee block size n.
-func PKCS7Pad(b []byte, n int) []byte {
+func PadPKCS7(b []byte, n int) []byte {
 	if n < 1 || n > math.MaxUint8 {
 		panic("invalid block size")
 	}
@@ -28,8 +28,8 @@ func PKCS7Pad(b []byte, n int) []byte {
 	return slices.Concat(b, padding)
 }
 
-// PKCS7Unpad returns a subslice of b with PKCS #7 padding removed.
-func PKCS7Unpad(b []byte) []byte {
+// UnpadPKCS7 returns a subslice of b with PKCS #7 padding removed.
+func UnpadPKCS7(b []byte) []byte {
 	n := int(b[len(b)-1])
 	return b[:len(b)-n]
 }
@@ -135,7 +135,7 @@ func newECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
 		}
 
 		res := slices.Concat(prefix, input, suffix)
-		res = PKCS7Pad(res, mode.BlockSize())
+		res = PadPKCS7(res, mode.BlockSize())
 
 		mode.CryptBlocks(res, res)
 
@@ -184,7 +184,7 @@ func newChallenge12EncryptFunc(suffix []byte) func([]byte) []byte {
 		b := slices.Concat(input, suffix)
 
 		// pad(input || suffix)
-		b = PKCS7Pad(b, aes.BlockSize)
+		b = PadPKCS7(b, aes.BlockSize)
 
 		// encrypt(k, pad(input || suffix))
 		mode.CryptBlocks(b, b)
@@ -263,7 +263,7 @@ outer:
 	// We guessed some padding as well, so remove it.
 	//
 	// TODO: Can we avoid guessing any padding?
-	res = PKCS7Unpad(res)
+	res = UnpadPKCS7(res)
 
 	return res
 }
@@ -291,7 +291,7 @@ func (p profileManager) newUserProfile(email string) []byte {
 	vals.Add("role", "user")
 
 	res := []byte(vals.Encode())
-	res = PKCS7Pad(res, aes.BlockSize)
+	res = PadPKCS7(res, aes.BlockSize)
 
 	block, err := aes.NewCipher(p.key)
 	if err != nil {
@@ -316,7 +316,7 @@ func (p profileManager) isAdmin(profile []byte) bool {
 	mode := NewECBDecrypter(block)
 	mode.CryptBlocks(pt, profile)
 
-	pt = PKCS7Unpad(pt)
+	pt = UnpadPKCS7(pt)
 
 	vals, err := url.ParseQuery(string(pt))
 	if err != nil {
@@ -390,7 +390,7 @@ func newChallenge14EncryptFunc(secret []byte) func([]byte) []byte {
 
 	return func(input []byte) []byte {
 		b := slices.Concat(prefix, input, secret)
-		b = PKCS7Pad(b, aes.BlockSize)
+		b = PadPKCS7(b, aes.BlockSize)
 
 		block, err := aes.NewCipher(key)
 		if err != nil {
