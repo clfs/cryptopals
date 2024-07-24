@@ -173,20 +173,25 @@ func Hamming(a, b []byte) int {
 	return res
 }
 
-// recoverRepeatingKeyXORKeySize returns the most likely key size for a
-// repeating-key XOR ciphertext, within a to b inclusive.
+// RecoverRepeatingKeyXORKeySize returns the most likely key size for a
+// repeating-key XOR ciphertext, within lo to hi inclusive.
 //
 // It assumes that the plaintext is English.
 //
 // TODO: Avoid panicking when a or b is large compared to len(ct).
-func recoverRepeatingKeyXORKeySize(ct []byte, a, b int) int {
+func RecoverRepeatingKeyXORKeySize(ct []byte, lo, hi int) int {
+	if lo > hi {
+		panic("lo > hi")
+	}
+
 	var (
 		bestKeySize int
-		bestScore   = math.MaxFloat64 // lower is better
+		bestScore   = math.MaxFloat64 // Lower is better.
 	)
 
-	for ks := a; ks <= b; ks++ {
+	for ks := lo; ks <= hi; ks++ {
 		x, y := ct[:ks*4], ct[ks*4:ks*8]
+
 		h := Hamming(x, y)
 
 		score := float64(h) / float64(ks)
@@ -209,7 +214,7 @@ func recoverRepeatingKeyXORKeySize(ct []byte, a, b int) int {
 func recoverRepeatingKeyXORKey(ct []byte) []byte {
 	var key []byte
 
-	ks := recoverRepeatingKeyXORKeySize(ct, 2, 40)
+	ks := RecoverRepeatingKeyXORKeySize(ct, 2, 40)
 
 	for i := range ks {
 		var column []byte
