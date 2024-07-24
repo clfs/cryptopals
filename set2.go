@@ -28,10 +28,10 @@ func PKCS7Pad(b []byte, n int) []byte {
 	return slices.Concat(b, padding)
 }
 
-// pkcs7unpad returns a new slice with PKCS#7 padding removed.
-func pkcs7unpad(b []byte) []byte {
+// PKCS7Unpad returns a subslice of b with PKCS #7 padding removed.
+func PKCS7Unpad(b []byte) []byte {
 	n := int(b[len(b)-1])
-	return bytes.Clone(b[:len(b)-n])
+	return b[:len(b)-n]
 }
 
 type cbcDecrypter struct {
@@ -263,7 +263,7 @@ outer:
 	// We guessed some padding as well, so remove it.
 	//
 	// TODO: Can we avoid guessing any padding?
-	res = pkcs7unpad(res)
+	res = PKCS7Unpad(res)
 
 	return res
 }
@@ -316,7 +316,7 @@ func (p profileManager) isAdmin(profile []byte) bool {
 	mode := NewECBDecrypter(block)
 	mode.CryptBlocks(pt, profile)
 
-	pt = pkcs7unpad(pt)
+	pt = PKCS7Unpad(pt)
 
 	vals, err := url.ParseQuery(string(pt))
 	if err != nil {
