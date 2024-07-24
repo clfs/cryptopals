@@ -90,7 +90,7 @@ func TestChallenge4(t *testing.T) {
 	in := decodeHexStringsFromFile(t, "testdata/4.txt")
 	want := 170
 
-	got := findSingleByteXORCiphertext(in)
+	got := FindSingleByteXORCiphertext(in)
 
 	if want != got {
 		t.Errorf("wrong index: want %d, got %d", want, got)

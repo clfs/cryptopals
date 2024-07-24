@@ -103,28 +103,27 @@ func RecoverSingleByteXORKey(ct []byte) byte {
 	return bestKey
 }
 
-// findSingleByteXORCiphertext returns the index of the ciphertext most likely
+// FindSingleByteXORCiphertext returns the index of the ciphertext most likely
 // to be single-byte XOR encrypted.
 //
-// If cts is empty, it returns -1.
-func findSingleByteXORCiphertext(cts [][]byte) int {
+// FindSingleByteXORCiphertext returns -1 if no ciphertext was found.
+func FindSingleByteXORCiphertext(cts [][]byte) int {
 	if len(cts) == 0 {
 		return -1
 	}
 
 	var (
 		bestIndex int
-		bestScore float64 // higher is better
+		bestScore float64 // Higher is better.
 	)
 
 	for i, ct := range cts {
 		pt := make([]byte, len(ct))
 
-		for j := range math.MaxUint8 {
-			key := byte(j)
-			cipher := singleByteXORCipher{key: key}
+		for k := range math.MaxUint8 {
+			key := byte(k)
 
-			cipher.XORKeyStream(pt, ct)
+			NewSingleByteXORCipher(key).XORKeyStream(pt, ct)
 
 			score := Englishness(pt)
 
