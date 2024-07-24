@@ -51,30 +51,28 @@ func (s singleByteXORCipher) XORKeyStream(dst, src []byte) {
 	}
 }
 
-// englishness scores s on how much it resembles English.
+// Englishness scores b on how much it resembles English.
 //
 // Scores are length-normalized and between 0 and 1 inclusive. Higher is better.
 //
-// If s is empty, it returns 0.
-func englishness(b []byte) float64 {
+// If len(b) == 0, Englishness returns 0.
+func Englishness(b []byte) float64 {
 	if len(b) == 0 {
 		return 0
 	}
 
-	var points int
-
-	for i := range b {
-		switch b[i] {
-		case ' ':
-			points += 5
-		case 'e', 't', 'a':
-			points += 2
-		}
+	weights := map[byte]float64{
+		' ': 5,
+		'e': 2,
+		't': 2,
+		'a': 2,
 	}
 
-	normalized := float64(points) / float64(len(b))
-
-	return normalized
+	var n float64
+	for _, v := range b {
+		n += weights[v]
+	}
+	return n / float64(len(b))
 }
 
 // recoverSingleByteXORKey returns the most likely key for a single-byte XOR
@@ -95,7 +93,7 @@ func recoverSingleByteXORKey(ct []byte) byte {
 
 		cipher.XORKeyStream(pt, ct)
 
-		score := englishness(pt)
+		score := Englishness(pt)
 
 		if score > bestScore {
 			bestScore = score
@@ -129,7 +127,7 @@ func findSingleByteXORCiphertext(cts [][]byte) int {
 
 			cipher.XORKeyStream(pt, ct)
 
-			score := englishness(pt)
+			score := Englishness(pt)
 
 			if score > bestScore {
 				bestScore = score
