@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/subtle"
+	"log/slog"
 	"math"
 	"math/big"
 	"net/url"
@@ -103,104 +104,58 @@ func newCBCDecrypter(b cipher.Block, iv []byte) cipher.BlockMode {
 	return &cbcDecrypter{b, iv}
 }
 
-// challenge11Encrypt returns an encryption of the given input, following
-// specific steps provided in challenge 11.
+// newECBOrCBCPrefixSuffixOracle returns a new oracle that encrypts inputs
+// as described in challenge 11.
 //
-// It randomly generates these parameters:
-//
-//   - A 16-byte key.
-//   - A 16-byte IV.
-//   - A prefix of 5 to 10 bytes.
-//   - A suffix of 5 to 10 bytes.
-//   - A boolean indicating whether to encrypt with AES-128-ECB or AES-128-CBC.
-//
-// It then returns encrypt(pad(prefix || input || suffix)).
-//
-// If ECB mode is chosen, the IV is discarded.
-//
-// TODO: Reduce the number of rand.Read calls.
-//
-// TODO: Refactor this to return a function.
-//
-// TODO: Pick a more appropriate name for the function.
-func challenge11Encrypt(input []byte) []byte {
+// The oracle itself returns encrypt(pad(prefix || input || suffix)) under
+// either AES-128-ECB or AES-128-CBC.
+func newECBOrCBCPrefixSuffixOracle() func([]byte) []byte {
 	var (
-		big5 = big.NewInt(5)
-		big6 = big.NewInt(6)
+		key    = randBytes(16)
+		iv     = randBytes(16)
+		prefix = randBytes(5 + randInt64(6))
+		suffix = randBytes(5 + randInt64(6))
+		useECB = randBytes(1) // TODO: Write randBool.
 	)
 
-	prefixLen, err := rand.Int(rand.Reader, big6) // [0, 6)
-	if err != nil {
-		panic(err)
+	return func(input []byte) []byte {
+		block, err := aes.NewCipher(key)
+		if err != nil {
+			panic(err)
+		}
+
+		var mode cipher.BlockMode
+
+		if useECB[0]%2 == 0 {
+			mode = newECBEncrypter(block)
+		} else {
+			mode = cipher.NewCBCEncrypter(block, iv)
+		}
+
+		res := slices.Concat(prefix, input, suffix)
+		res = pkcs7pad(res, mode.BlockSize())
+
+		mode.CryptBlocks(res, res)
+
+		return res
 	}
-
-	suffixLen, err := rand.Int(rand.Reader, big6) // [0, 6)
-	if err != nil {
-		panic(err)
-	}
-
-	prefixLen.Add(prefixLen, big5) // [5, 11)
-	suffixLen.Add(suffixLen, big5) // [5, 11)
-
-	var (
-		key    = make([]byte, 16)
-		iv     = make([]byte, 16)
-		prefix = make([]byte, prefixLen.Int64())
-		suffix = make([]byte, suffixLen.Int64())
-		useECB = make([]byte, 1)
-	)
-
-	if _, err := rand.Read(key); err != nil {
-		panic(err)
-	}
-	if _, err := rand.Read(iv); err != nil {
-		panic(err)
-	}
-	if _, err := rand.Read(prefix); err != nil {
-		panic(err)
-	}
-	if _, err := rand.Read(suffix); err != nil {
-		panic(err)
-	}
-	if _, err := rand.Read(useECB); err != nil {
-		panic(err)
-	}
-
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		panic(err)
-	}
-
-	var mode cipher.BlockMode
-
-	// Choose either ECB or CBC with 1:1 odds.
-	if useECB[0]%2 == 0 {
-		mode = newECBEncrypter(block)
-	} else {
-		mode = cipher.NewCBCEncrypter(block, iv)
-	}
-
-	var res []byte
-
-	res = append(res, prefix...)
-	res = append(res, input...)
-	res = append(res, suffix...)
-
-	res = pkcs7pad(res, mode.BlockSize())
-
-	mode.CryptBlocks(res, res)
-
-	return res
 }
 
-// challenge11Oracle takes a encryption function and calls it once.
-// challenge11Oracle returns true if the encryption function used 128-bit ECB
-// mode.
-func challenge11Oracle(enc func([]byte) []byte) (isECB bool) {
-	// Large enough to guarantee that 128-bit ECB mode outputs a repeated block.
-	input := make([]byte, aes.BlockSize*3)
-	ct := enc(input)
-	return is128ECBCiphertext(ct)
+// isECBOracle returns true if an encryption oracle uses ECB mode.
+func isECBOracle(oracle func([]byte) []byte) (isECB bool) {
+	bs := findBlockSize(oracle)
+
+	slog.Info("found block size", "bs", bs)
+
+	if bs == 1 {
+		return false // stream, asymmetric, etc.
+	}
+
+	// Large enough to guarantee that ECB encryption outputs a repeated block.
+
+	input := make([]byte, bs*3)
+	ct := oracle(input)
+	return isECBCiphertext(ct, bs)
 }
 
 // newChallenge12EncryptFunc returns a function that encrypts inputs under the
@@ -239,35 +194,30 @@ func newChallenge12EncryptFunc(suffix []byte) func([]byte) []byte {
 	}
 }
 
-// gcd returns the greatest common divisor of two non-negative integers.
-func gcd(x, y int) int {
-	if x < 0 || y < 0 {
-		panic("negative")
+// findBlockSize returns the block size used by an encryption oracle.
+func findBlockSize(oracle func([]byte) []byte) int {
+	input := make([]byte, 1)
+
+	// Find the ciphertext length for a 1-byte input.
+	start := len(oracle(input))
+	end := start
+
+	// Grow the input until the ciphertext length changes.
+	for start == end {
+		input = append(input, 0)
+		end = len(oracle(input))
 	}
-	for y != 0 {
-		x, y = y, x%y
-	}
-	return x
+
+	// The delta is the block size.
+	return end - start
 }
 
-// recoverChallenge12Suffix takes a challenge-12 encryption function and
+// recoverChallenge12Suffix takes a challenge-12 encryption oracle and
 // recovers the secret suffix used.
-func recoverChallenge12Suffix(enc func([]byte) []byte) []byte {
-	// Recover the block size by taking the greatest common divisor of 100
-	// ciphertext lengths.
-	var (
-		input []byte
-		bs    int
-	)
+func recoverChallenge12Suffix(oracle func([]byte) []byte) []byte {
+	bs := findBlockSize(oracle)
 
-	for range 100 {
-		input = append(input, 0)
-		ct := enc(input)
-		bs = gcd(bs, len(ct))
-	}
-
-	// Confirm that the encryption function is using ECB.
-	if !is128ECBCiphertext(enc(input)) {
+	if !isECBOracle(oracle) {
 		panic("not ecb")
 	}
 
@@ -282,16 +232,16 @@ outer:
 		// Create a reference output to compare guesses against.
 		//
 		// encrypt(prefix || secret || pad)
-		want := enc(prefix)
+		want := oracle(prefix)
 
 		for i := range math.MaxUint8 {
 			b := byte(i)
 
 			// prefix || res || b
-			input = slices.Concat(prefix, res, []byte{b})
+			input := slices.Concat(prefix, res, []byte{b})
 
 			// encrypt(prefix || res || b || secret || pad)
-			output := enc(input)
+			output := oracle(input)
 
 			// We now know these two values:
 			//
@@ -409,3 +359,61 @@ func newAdminProfile(m *profileManager) []byte {
 
 	return append(a[:32], b[16:]...)
 }
+
+// randInt64 generates a random int64 using crypto/rand.Int.
+func randInt64(max int64) int64 {
+	n, err := rand.Int(rand.Reader, big.NewInt(max))
+	if err != nil {
+		panic(err)
+	}
+	return n.Int64()
+}
+
+// randBytes generates random bytes using crypto/rand.Read.
+func randBytes(n int64) []byte {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return b
+}
+
+// newChallenge14EncryptFunc returns a new encryption function that behaves as
+// described in challenge 14.
+//
+// It returns AES-128-ECB(key, prefix || input || secret). The key and prefix
+// are both random and fixed.
+func newChallenge14EncryptFunc(secret []byte) func([]byte) []byte {
+	var (
+		key    = randBytes(16)
+		prefix = randBytes(1 + randInt64(50))
+	)
+
+	return func(input []byte) []byte {
+		b := slices.Concat(prefix, input, secret)
+		b = pkcs7pad(b, aes.BlockSize)
+
+		block, err := aes.NewCipher(key)
+		if err != nil {
+			panic(err)
+		}
+
+		mode := newECBEncrypter(block)
+
+		mode.CryptBlocks(b, b)
+
+		return b
+	}
+}
+
+// // recoverChallenge14Secret recovers the secret from a challenge 14 encryption
+// // function.
+// func recoverChallenge14Secret(enc func([]byte) []byte) []byte {
+// 	// Skip finding the block size, since we've done that a few times already.
+// 	bs := aes.BlockSize
+
+// 	randBlock := randBytes(bs)
+// 	for i := range bs {
+
+// 	}
+// }

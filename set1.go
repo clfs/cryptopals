@@ -1,6 +1,7 @@
 package cryptopals
 
 import (
+	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
 	"encoding/hex"
@@ -293,13 +294,21 @@ func newECBDecrypter(b cipher.Block) cipher.BlockMode {
 	return ecbDecrypter{b}
 }
 
-// is128ECBCiphertext returns true if b is likely to be 128-bit ECB encrypted.
-func is128ECBCiphertext(b []byte) bool {
+// isAESECBCiphertext returns true if b is likely to be AES-ECB encrypted.
+func isAESECBCiphertext(b []byte) bool {
+	return isECBCiphertext(b, aes.BlockSize)
+}
+
+// isECBCiphertext returns true if b is likely to be ECB encrypted.
+func isECBCiphertext(b []byte, blockSize int) bool {
+	if len(b)%blockSize != 0 {
+		return false
+	}
+
 	// TODO: Use slices.Chunks once it's available in the standard library.
-	seen := make(map[[16]byte]struct{})
-	for i := 0; i < len(b); i += 16 {
-		var block [16]byte
-		copy(block[:], b[i:i+16])
+	seen := make(map[string]struct{})
+	for i := 0; i < len(b); i += blockSize {
+		block := string(b[i : i+blockSize])
 		if _, ok := seen[block]; ok {
 			return true
 		}
