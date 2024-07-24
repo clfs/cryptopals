@@ -78,7 +78,7 @@ func TestChallenge12(t *testing.T) {
 	secret := decodeBase64(t, "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK")
 	enc := NewECBSuffixOracle(secret)
 
-	got := recoverChallenge12Suffix(enc)
+	got := RecoverECBSuffixOracleSecret(enc)
 
 	if !bytes.Equal(secret, got) {
 		// Avoid revealing the answer if the test fails.
