@@ -75,23 +75,22 @@ func Englishness(b []byte) float64 {
 	return n / float64(len(b))
 }
 
-// recoverSingleByteXORKey returns the most likely key for a single-byte XOR
+// RecoverSingleByteXORKey returns the most likely key for a single-byte XOR
 // ciphertext.
 //
 // It assumes the plaintext is English.
-func recoverSingleByteXORKey(ct []byte) byte {
+func RecoverSingleByteXORKey(ct []byte) byte {
 	var (
 		bestKey   byte
-		bestScore float64 // higher is better
+		bestScore float64 // Higher is better.
 	)
 
 	pt := make([]byte, len(ct))
 
 	for i := range math.MaxUint8 {
 		key := byte(i)
-		cipher := singleByteXORCipher{key: key}
 
-		cipher.XORKeyStream(pt, ct)
+		NewSingleByteXORCipher(key).XORKeyStream(pt, ct)
 
 		score := Englishness(pt)
 
@@ -218,7 +217,7 @@ func recoverRepeatingKeyXORKey(ct []byte) []byte {
 		for j := i; j < len(ct); j += ks {
 			column = append(column, ct[j])
 		}
-		key = append(key, recoverSingleByteXORKey(column))
+		key = append(key, RecoverSingleByteXORKey(column))
 	}
 
 	return key

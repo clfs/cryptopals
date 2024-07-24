@@ -51,7 +51,7 @@ func TestChallenge3(t *testing.T) {
 	ct := decodeHex(t, "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
 	want := byte(88)
 
-	got := recoverSingleByteXORKey(ct)
+	got := RecoverSingleByteXORKey(ct)
 
 	if want != got {
 		t.Errorf("want %d, got %d", want, got)
@@ -97,7 +97,7 @@ func TestChallenge4(t *testing.T) {
 	}
 
 	ct := in[got]
-	key := recoverSingleByteXORKey(ct)
+	key := RecoverSingleByteXORKey(ct)
 	NewSingleByteXORCipher(key).XORKeyStream(ct, ct)
 	t.Logf("plaintext: %q", ct)
 }
