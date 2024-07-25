@@ -206,9 +206,9 @@ func FindBlockSize(oracle func([]byte) []byte) int {
 	return n - start
 }
 
-// RecoverECBSuffixOracleSecret takes an encryption oracle that behaves as
-// described in challenge 12 and recovers the secret used.
-func RecoverECBSuffixOracleSecret(oracle func([]byte) []byte) []byte {
+// RecoverECBSuffixSecret recovers the secret from an encryption oracle returned
+// by [NewECBSuffixOracle].
+func RecoverECBSuffixSecret(oracle func([]byte) []byte) []byte {
 	bs := FindBlockSize(oracle)
 
 	if !IsECBOracle(oracle) {
