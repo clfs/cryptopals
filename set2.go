@@ -370,8 +370,8 @@ func randBytes(n int64) []byte {
 // NewECBPrefixSuffixOracle returns an encryption oracle that behaves as
 // described in challenge 14.
 //
-// It returns AES-128-ECB(key, prefix || input || secret). The key and prefix
-// are random and fixed.
+// It returns AES-128-ECB(key, prefix || input || secret || padding). The key
+// and prefix are random and fixed.
 func NewECBPrefixSuffixOracle(secret []byte) func([]byte) []byte {
 	var (
 		key    = randBytes(16)
