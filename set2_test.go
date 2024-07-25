@@ -102,8 +102,10 @@ func TestChallenge14(t *testing.T) {
 	secret := decodeBase64(t, "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK")
 	oracle := NewECBPrefixSuffixOracle(secret)
 
-	got := RecoverECBPrefixSuffixSecret(oracle)
-
+	got, err := RecoverECBPrefixSuffixSecret(oracle)
+	if err != nil {
+		t.Errorf("error: %v", err)
+	}
 	if !bytes.Equal(secret, got) {
 		// Avoid revealing the answer if the test fails.
 		t.Error("got wrong value for secret")

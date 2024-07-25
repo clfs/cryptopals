@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/subtle"
+	"fmt"
 	"math"
 	"math/big"
 	"net/url"
@@ -351,7 +352,7 @@ func NewAdminProfile(m *ProfileManager) []byte {
 	return append(a[:32], b[16:]...)
 }
 
-// randInt64 generates a random int64 using crypto/rand.Int.
+// randInt64 generates a uniform random int64 in [0, max) using crypto/rand.Int.
 func randInt64(max int64) int64 {
 	n, err := rand.Int(rand.Reader, big.NewInt(max))
 	if err != nil {
@@ -360,7 +361,7 @@ func randInt64(max int64) int64 {
 	return n.Int64()
 }
 
-// randBytes generates random bytes using crypto/rand.Read.
+// randBytes generates n uniform random bytes using crypto/rand.Read.
 func randBytes(n int64) []byte {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
@@ -397,12 +398,111 @@ func NewECBPrefixSuffixOracle(secret []byte) func([]byte) []byte {
 	}
 }
 
-// RecoverECBPrefixSuffixSecret recovers the secret from an encryption oracle
-// returned by [NewECBPrefixSuffixOracle].
-func RecoverECBPrefixSuffixSecret(oracle func([]byte) []byte) []byte {
-	bs := FindBlockSize(oracle)
+func recoverECBPrefixSuffixPrefixLength(oracle func([]byte) []byte, bs int) (int, error) {
+	// TODO: This could be made much simpler.
 
+	// Create a fixed random block.
 	randBlock := randBytes(int64(bs))
 
-	return randBlock
+	// If we repeat the random block in the input enough times, a corresponding
+	// repeating block will appear in the output.
+	//
+	// Find that "magic" block by picking the most common output block.
+	output := oracle(bytes.Repeat(randBlock, 100))
+
+	histogram := make(map[string]int)
+	for i := 0; i < len(output); i += bs {
+		// TODO: Use slices.Chunk once available in the standard library.
+		block := string(output[i : i+bs])
+		histogram[block]++
+	}
+
+	var (
+		magicBlock []byte
+		bestFreq   int // Higher is better.
+	)
+
+	for k, freq := range histogram {
+		if freq > bestFreq {
+			magicBlock = []byte(k)
+			bestFreq = freq
+		}
+	}
+
+	// Now that we know repeating randBlock enough times causes magicBlock to
+	// appear, find the shortest input that does so.
+	for i := range bs {
+		input := slices.Concat(randBlock, randBlock[:i])
+		output := oracle(input)
+
+		// TODO: Replace with slices.Chunk once available in standard library.
+		for j := 0; j < len(output); j += bs {
+			if bytes.Equal(output[j:j+bs], magicBlock) {
+				// TODO: Document this calculation.
+				return j - i, nil
+			}
+		}
+	}
+
+	return 0, fmt.Errorf("magic block never appeared")
+}
+
+// RecoverECBPrefixSuffixSecret recovers the secret from an encryption oracle
+// returned by [NewECBPrefixSuffixOracle].
+func RecoverECBPrefixSuffixSecret(oracle func([]byte) []byte) ([]byte, error) {
+	bs := FindBlockSize(oracle)
+
+	prefixLen, err := recoverECBPrefixSuffixPrefixLength(oracle, bs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find prefix length: %v", err)
+	}
+
+	var res []byte
+
+outer:
+	for {
+		// Choose a prefix pad such that our 'guess' byte b will be the
+		// last byte of a plaintext block.
+		prefixPad := make([]byte, bs-((len(res)+prefixLen)%16)-1)
+
+		// Create a reference output to compare guesses against.
+		//
+		// encrypt(prefix || prefixPad || secret || pad)
+		want := oracle(prefixPad)
+
+		for i := range math.MaxUint8 {
+			b := byte(i)
+
+			// prefixPad || res || b
+			input := slices.Concat(prefixPad, res, []byte{b})
+
+			// encrypt(prefix || prefixPad || res || b || secret || pad)
+			output := oracle(input)
+
+			// We now know these two values:
+			//
+			//  1. encrypt(prefix || prefixPad || secret || ...)
+			//  2. encrypt(prefix || prefixPad || res || b || ...)
+			//
+			// Compare leading blocks to determine if b was the correct
+			// guess.
+			bound := prefixLen + len(input)
+			if bytes.Equal(output[:bound], want[:bound]) {
+				res = append(res, b)
+				continue outer
+			}
+		}
+
+		// No guesses were correct, so we're done.
+		//
+		// TODO: Make the exit logic cleaner.
+		break
+	}
+
+	// We guessed some padding as well, so remove it.
+	//
+	// TODO: Can we avoid guessing any padding?
+	res = UnpadPKCS7(res)
+
+	return res, nil
 }
