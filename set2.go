@@ -16,6 +16,8 @@ import (
 
 // PadPKCS7 returns a new slice that concatenates b with PKCS #7 padding to
 // guarantee block size n.
+//
+// TODO: Avoid copying b by just returning the padding itself.
 func PadPKCS7(b []byte, n int) []byte {
 	if n < 1 || n > math.MaxUint8 {
 		panic("invalid block size")
