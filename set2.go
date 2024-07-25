@@ -397,14 +397,12 @@ func NewECBPrefixSuffixOracle(secret []byte) func([]byte) []byte {
 	}
 }
 
-// // recoverChallenge14Secret recovers the secret from a challenge 14 encryption
-// // function.
-// func recoverChallenge14Secret(enc func([]byte) []byte) []byte {
-// 	// Skip finding the block size, since we've done that a few times already.
-// 	bs := aes.BlockSize
+// RecoverECBPrefixSuffixSecret recovers the secret from an encryption oracle
+// returned by [NewECBPrefixSuffixOracle].
+func RecoverECBPrefixSuffixSecret(oracle func([]byte) []byte) []byte {
+	bs := FindBlockSize(oracle)
 
-// 	randBlock := randBytes(bs)
-// 	for i := range bs {
+	randBlock := randBytes(int64(bs))
 
-// 	}
-// }
+	return randBlock
+}
